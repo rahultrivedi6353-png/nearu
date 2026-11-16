@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NearU</title>
+<style>
+  body{font-family:sans-serif;margin:0;background:#f4f5fb;color:#222}
+  header{background:#3F51B5;color:#fff;padding:16px;font-size:20px;font-weight:bold}
+  .box{padding:16px}
+  input{width:100%;padding:12px;font-size:16px;box-sizing:border-box;margin-bottom:10px;border:1px solid #ccc;border-radius:8px}
+  button{width:100%;padding:14px;font-size:16px;border:0;border-radius:8px;background:#3F51B5;color:#fff;margin-bottom:10px}
+  button.off{background:#c62828}
+  #status{margin:10px 0;font-size:14px;color:#555}
+  .person{background:#fff;padding:12px;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px #0002}
+</style>
+</head>
+<body>
+<header>NearU</header>
+<div class="box">
+  <input id="name" placeholder="आपका नाम">
+  <button id="visBtn" onclick="toggleVisible()">Visible ON करें</button>
+  <button onclick="scan()">आसपास के लोग खोजें</button>
+  <div id="status">तैयार</div>
+  <div id="list"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, remove, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const app = initializeApp({ databaseURL: "https://nearu-8435f-default-rtdb.firebaseio.com" });
+const db = getDatabase(app);
+
+const myId = localStorage.getItem("nearuId") || ("u" + Math.random().toString(36).slice(2, 10));
+localStorage.setItem("nearuId", myId);
+document.getElementById("name").value = localStorage.getItem("nearuName") || "";
+
+let visible = false, timer = null, myPos = null;
+const $ = id => document.getElementById(id);
+const setStatus = t => $("status").textContent = t;
+
+function getPos() {
+  return new Promise((res, rej) =>
+    navigator.geolocation.getCurrentPosition(
+      p => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      e => rej(e), { enableHighAccuracy: true, timeout: 15000 }));
+}
+
+async function publish() {
+  try {
+    myPos = await getPos();
+    await set(ref(db, "users/" + myId), {
+      name: $("name").value.trim() || "अनाम",
+      lat: myPos.lat, lng: myPos.lng, t: Date.now()
+    });
+    setStatus("Visible हैं ✔");
+  } catch (e) { setStatus("लोकेशन/नेट की दिक्कत: " + e.message); }
+}
+
+window.toggleVisible = async function () {
+  const name = $("name").value.trim();
+  if (!visible) {
+    if (!name) { setStatus("पहले अपना नाम लिखें"); return; }
+    localStorage.setItem("nearuName", name);
+    visible = true;
+    $("visBtn").textContent = "Invisible हो जाएँ";
+    $("visBtn").className = "off";
+    await publish();
+    timer = setInterval(publish, 20000);
+  } else {
+    visible = false;
+    clearInterval(timer);
+    await remove(ref(db, "users/" + myId));
+    $("visBtn").textContent = "Visible ON करें";
+    $("visBtn").className = "";
+    setStatus("अब आप Invisible हैं");
+  }
+};
+
+function dist(a, b) {
+  const R = 6371000, r = x => x * Math.PI / 180;
+  const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+window.scan = async function () {
+  setStatus("खोज रहे हैं...");
+  try {
+    myPos = await getPos();
+    const snap = await get(ref(db, "users"));
+    const data = snap.val() || {};
+    const now = Date.now(), out = [];
+    for (const id in data) {
+      if (id === myId) continue;
+      const u = data[id];
+      if (now - u.t > 90000) continue;           // 90 सेकंड से पुराना = ऑफ़लाइन
+      const d = dist(myPos, u);
+      if (d <= 500) out.push({ name: u.name, d });
+    }
+    out.sort((a, b) => a.d - b.d);
+    $("list").innerHTML = out.map(p =>
+      `<div class="person"><b>${p.name.replace(/</g, "&lt;")}</b><br>लगभग ${Math.round(p.d)} मीटर दूर</div>`).join("");
+    setStatus(out.length ? out.length + " लोग मिले" : "आसपास कोई Visible नहीं मिला");
+  } catch (e) { setStatus("दिक्कत: " + e.message); }
+};
+</script>
+</body>
+</html>
