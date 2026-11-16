@@ -95,9 +95,9 @@ window.scan = async function () {
     for (const id in data) {
       if (id === myId) continue;
       const u = data[id];
-      if (now - u.t > 90000) continue;           // 90 सेकंड से पुराना = ऑफ़लाइन
+      if (now - u.t > 600000) continue;           // 90 सेकंड से पुराना = ऑफ़लाइन
       const d = dist(myPos, u);
-      if (d <= 500) out.push({ name: u.name, d });
+      if (d <= 5000) out.push({ name: u.name, d });
     }
     out.sort((a, b) => a.d - b.d);
     $("list").innerHTML = out.map(p =>
