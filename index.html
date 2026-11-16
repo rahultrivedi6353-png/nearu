@@ -9,9 +9,12 @@
   header{background:#3F51B5;color:#fff;padding:16px;font-size:20px;font-weight:bold}
   .box{padding:16px}
   input{width:100%;padding:12px;font-size:16px;box-sizing:border-box;margin-bottom:10px;border:1px solid #ccc;border-radius:8px}
-  button{width:100%;padding:14px;font-size:16px;border:0;border-radius:8px;background:#3F51B5;color:#fff;margin-bottom:10px}
+  button{width:100%;padding:12px;font-size:16px;border:0;border-radius:8px;background:#3F51B5;color:#fff;margin:6px 0}
   button.off{background:#c62828}
+  button.ok{background:#2e7d32}
+  button:disabled{background:#999}
   #status{margin:10px 0;font-size:14px;color:#555}
+  h3{margin:18px 0 6px}
   .person{background:#fff;padding:12px;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px #0002}
 </style>
 </head>
@@ -19,26 +22,29 @@
 <header>NearU</header>
 <div class="box">
   <input id="name" placeholder="आपका नाम">
-  <button id="visBtn" onclick="toggleVisible()">Visible ON करें</button>
-  <button onclick="scan()">आसपास के लोग खोजें</button>
+  <button id="visBtn" data-a="vis">Visible ON करें</button>
+  <button data-a="scan">आसपास के लोग खोजें</button>
   <div id="status">तैयार</div>
-  <div id="list"></div>
+  <div id="out"></div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, remove, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, remove, get, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const app = initializeApp({ databaseURL: "https://nearu-8435f-default-rtdb.firebaseio.com" });
 const db = getDatabase(app);
 
 const myId = localStorage.getItem("nearuId") || ("u" + Math.random().toString(36).slice(2, 10));
 localStorage.setItem("nearuId", myId);
-document.getElementById("name").value = localStorage.getItem("nearuName") || "";
+const $ = id => document.getElementById(id);
+$("name").value = localStorage.getItem("nearuName") || "";
+const setStatus = t => $("status").textContent = t;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const myName = () => $("name").value.trim() || localStorage.getItem("nearuName") || "अनाम";
 
 let visible = false, timer = null, myPos = null;
-const $ = id => document.getElementById(id);
-const setStatus = t => $("status").textContent = t;
+let lastScan = [], incoming = {}, sent = {}, conns = {};
 
 function getPos() {
   return new Promise((res, rej) =>
@@ -50,22 +56,20 @@ function getPos() {
 async function publish() {
   try {
     myPos = await getPos();
-    await set(ref(db, "users/" + myId), {
-      name: $("name").value.trim() || "अनाम",
-      lat: myPos.lat, lng: myPos.lng, t: Date.now()
-    });
+    await set(ref(db, "users/" + myId), { name: myName(), lat: myPos.lat, lng: myPos.lng, t: Date.now() });
     setStatus("Visible हैं ✔");
   } catch (e) { setStatus("लोकेशन/नेट की दिक्कत: " + e.message); }
 }
 
-window.toggleVisible = async function () {
-  const name = $("name").value.trim();
+async function toggleVisible() {
   if (!visible) {
+    const name = $("name").value.trim();
     if (!name) { setStatus("पहले अपना नाम लिखें"); return; }
     localStorage.setItem("nearuName", name);
     visible = true;
     $("visBtn").textContent = "Invisible हो जाएँ";
     $("visBtn").className = "off";
+    onDisconnect(ref(db, "users/" + myId)).remove();
     await publish();
     timer = setInterval(publish, 20000);
   } else {
@@ -76,7 +80,7 @@ window.toggleVisible = async function () {
     $("visBtn").className = "";
     setStatus("अब आप Invisible हैं");
   }
-};
+}
 
 function dist(a, b) {
   const R = 6371000, r = x => x * Math.PI / 180;
@@ -85,7 +89,7 @@ function dist(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-window.scan = async function () {
+async function scan() {
   setStatus("खोज रहे हैं...");
   try {
     myPos = await getPos();
@@ -95,16 +99,79 @@ window.scan = async function () {
     for (const id in data) {
       if (id === myId) continue;
       const u = data[id];
-      if (now - u.t > 600000) continue;           // 90 सेकंड से पुराना = ऑफ़लाइन
+      if (now - u.t > 600000) continue;
       const d = dist(myPos, u);
-      if (d <= 5000) out.push({ name: u.name, d });
+      if (d <= 5000) out.push({ id, name: u.name, d });
     }
     out.sort((a, b) => a.d - b.d);
-    $("list").innerHTML = out.map(p =>
-      `<div class="person"><b>${p.name.replace(/</g, "&lt;")}</b><br>लगभग ${Math.round(p.d)} मीटर दूर</div>`).join("");
+    lastScan = out;
     setStatus(out.length ? out.length + " लोग मिले" : "आसपास कोई Visible नहीं मिला");
+    render();
   } catch (e) { setStatus("दिक्कत: " + e.message); }
-};
+}
+
+function render() {
+  let h = "";
+  const inc = Object.entries(incoming);
+  if (inc.length) {
+    h += "<h3>मिली Requests</h3>";
+    inc.forEach(([id, r]) => {
+      h += `<div class="person"><b>${esc(r.name)}</b> आपसे जुड़ना चाहता है
+        <button class="ok" data-a="acc" data-id="${esc(id)}" data-n="${esc(r.name)}">Accept</button>
+        <button class="off" data-a="rej" data-id="${esc(id)}">Reject</button></div>`;
+    });
+  }
+  const cs = Object.entries(conns);
+  if (cs.length) {
+    h += "<h3>आपके Connections</h3>";
+    cs.forEach(([id, c]) => {
+      h += `<div class="person"><b>${esc(c.name)}</b> ✔ Connected
+        <button class="off" data-a="del" data-id="${esc(id)}">Connection हटाएँ</button></div>`;
+    });
+  }
+  if (lastScan.length) {
+    h += "<h3>आसपास के लोग</h3>";
+    lastScan.forEach(p => {
+      let btn;
+      if (conns[p.id]) btn = "<div>✔ Connected</div>";
+      else if (incoming[p.id]) btn = "<div>इन्होंने आपको Request भेजी है (ऊपर देखें)</div>";
+      else if (sent[p.id]) btn = '<button disabled>Request भेजी गई</button>';
+      else btn = `<button data-a="req" data-id="${esc(p.id)}">Request भेजें</button>`;
+      h += `<div class="person"><b>${esc(p.name)}</b><br>लगभग ${Math.round(p.d)} मीटर दूर${btn}</div>`;
+    });
+  }
+  $("out").innerHTML = h;
+}
+
+onValue(ref(db, "requests/" + myId), s => { incoming = s.val() || {}; render(); });
+onValue(ref(db, "sent/" + myId), s => { sent = s.val() || {}; render(); });
+onValue(ref(db, "connections/" + myId), s => { conns = s.val() || {}; render(); });
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button[data-a]");
+  if (!b) return;
+  const a = b.dataset.a, id = b.dataset.id, n = b.dataset.n;
+  try {
+    if (a === "vis") await toggleVisible();
+    else if (a === "scan") await scan();
+    else if (a === "req") {
+      localStorage.setItem("nearuName", myName());
+      await set(ref(db, `requests/${id}/${myId}`), { name: myName(), t: Date.now() });
+      await set(ref(db, `sent/${myId}/${id}`), true);
+    } else if (a === "acc") {
+      await set(ref(db, `connections/${myId}/${id}`), { name: n, t: Date.now() });
+      await set(ref(db, `connections/${id}/${myId}`), { name: myName(), t: Date.now() });
+      await remove(ref(db, `requests/${myId}/${id}`));
+      await remove(ref(db, `sent/${id}/${myId}`));
+    } else if (a === "rej") {
+      await remove(ref(db, `requests/${myId}/${id}`));
+      await remove(ref(db, `sent/${id}/${myId}`));
+    } else if (a === "del") {
+      await remove(ref(db, `connections/${myId}/${id}`));
+      await remove(ref(db, `connections/${id}/${myId}`));
+    }
+  } catch (err) { setStatus("दिक्कत: " + err.message); }
+});
 </script>
 </body>
 </html>
