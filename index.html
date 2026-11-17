@@ -6,15 +6,18 @@
 <title>NearU</title>
 <style>
   body{font-family:sans-serif;margin:0;background:#f4f5fb;color:#222}
-  header{background:#3F51B5;color:#fff;padding:16px;font-size:20px;font-weight:bold;display:flex;align-items:center;gap:12px}
-  header button{width:auto;margin:0;padding:6px 12px;background:#fff3;font-size:14px}
+  header{background:#3F51B5;color:#fff;padding:16px;font-size:20px;font-weight:bold;display:flex;align-items:center;gap:8px}
+  header button{width:auto;margin:0;padding:6px 10px;background:#fff3;font-size:14px}
   header .sp{flex:1}
   .box{padding:16px}
   input{width:100%;padding:12px;font-size:16px;box-sizing:border-box;margin-bottom:10px;border:1px solid #ccc;border-radius:8px}
   button{width:100%;padding:12px;font-size:16px;border:0;border-radius:8px;background:#3F51B5;color:#fff;margin:6px 0}
   button.off{background:#c62828}
   button.ok{background:#2e7d32}
+  button.gray{background:#757575}
   button:disabled{background:#999}
+  .row{display:flex;gap:8px}
+  .row button{flex:1;font-size:14px;padding:10px}
   #status,#loginMsg{margin:10px 0;font-size:14px;color:#555}
   h3{margin:18px 0 6px}
   .person{background:#fff;padding:12px;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px #0002}
@@ -51,7 +54,12 @@
 </div>
 
 <div id="chat">
-  <header><button data-a="back">← वापस</button><span id="chatTitle">Chat</span></header>
+  <header>
+    <button data-a="back">← वापस</button>
+    <span id="chatTitle" class="sp">Chat</span>
+    <button data-a="blockChat">Block</button>
+    <button data-a="reportChat">Report</button>
+  </header>
   <div id="msgs"></div>
   <div id="sendRow">
     <input id="msgInput" placeholder="संदेश लिखें" maxlength="500">
@@ -83,8 +91,9 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">"
 const myName = () => $("name").value.trim() || localStorage.getItem("nearuName") || "अनाम";
 
 let myId = null, visible = false, timer = null, myPos = null;
-let lastScan = [], incoming = {}, sent = {}, conns = {};
-let chatWith = null, chatUnsub = null, unsubs = [];
+let lastScan = [], incoming = {}, sent = {}, conns = {}, blocked = {}, blockedBy = {};
+let chatWith = null, chatName = "", chatUnsub = null, unsubs = [];
+const isHidden = id => !!(blocked[id] || blockedBy[id]);
 
 function getPos() {
   return new Promise((res, rej) =>
@@ -97,7 +106,6 @@ async function publish() {
   if (!myId) return;
   try {
     myPos = await getPos();
-    // सटीक पता नहीं, लगभग 150 मीटर के ग्रिड में गोल करके भेजते हैं
     const G = 0.0015;
     const rl = Math.round(myPos.lat / G) * G, rg = Math.round(myPos.lng / G) * G;
     await set(ref(db, "users/" + myId), { name: myName(), lat: +rl.toFixed(5), lng: +rg.toFixed(5), t: Date.now() });
@@ -145,11 +153,11 @@ async function scan() {
     const data = snap.val() || {};
     const now = Date.now(), out = [];
     for (const id in data) {
-      if (id === myId) continue;
+      if (id === myId || isHidden(id)) continue;
       const u = data[id];
       if (now - u.t > 180000) continue;
       const d = dist(myPos, u);
-      if (d <= 500000) out.push({ id, name: u.name, d });
+      if (d <= 1000) out.push({ id, name: u.name, d });
     }
     out.sort((a, b) => a.d - b.d);
     lastScan = out;
@@ -160,44 +168,102 @@ async function scan() {
 
 function render() {
   let h = "";
-  const inc = Object.entries(incoming);
+  const inc = Object.entries(incoming).filter(([id]) => !isHidden(id));
   if (inc.length) {
     h += "<h3>मिली Requests</h3>";
     inc.forEach(([id, r]) => {
       h += `<div class="person"><b>${esc(r.name)}</b> आपसे जुड़ना चाहता है
         <button class="ok" data-a="acc" data-id="${esc(id)}" data-n="${esc(r.name)}">Accept</button>
-        <button class="off" data-a="rej" data-id="${esc(id)}">Reject</button></div>`;
+        <div class="row">
+          <button class="off" data-a="rej" data-id="${esc(id)}">Reject</button>
+          <button class="gray" data-a="blk" data-id="${esc(id)}" data-n="${esc(r.name)}">Block</button>
+          <button class="gray" data-a="rep" data-id="${esc(id)}" data-n="${esc(r.name)}">Report</button>
+        </div></div>`;
     });
   }
-  const cs = Object.entries(conns);
+  const cs = Object.entries(conns).filter(([id]) => !isHidden(id));
   if (cs.length) {
     h += "<h3>आपके Connections</h3>";
     cs.forEach(([id, c]) => {
       h += `<div class="person"><b>${esc(c.name)}</b> ✔ Connected
         <button class="ok" data-a="chat" data-id="${esc(id)}" data-n="${esc(c.name)}">Chat खोलें</button>
-        <button class="off" data-a="del" data-id="${esc(id)}">Connection हटाएँ</button></div>`;
+        <div class="row">
+          <button class="off" data-a="del" data-id="${esc(id)}">Connection हटाएँ</button>
+          <button class="gray" data-a="blk" data-id="${esc(id)}" data-n="${esc(c.name)}">Block</button>
+          <button class="gray" data-a="rep" data-id="${esc(id)}" data-n="${esc(c.name)}">Report</button>
+        </div></div>`;
     });
   }
-  if (lastScan.length) {
+  const sl = lastScan.filter(p => !isHidden(p.id));
+  if (sl.length) {
     h += "<h3>आसपास के लोग</h3>";
-    lastScan.forEach(p => {
+    sl.forEach(p => {
       let btn;
       if (conns[p.id]) btn = "<div>✔ Connected</div>";
       else if (incoming[p.id]) btn = "<div>इन्होंने आपको Request भेजी है (ऊपर देखें)</div>";
       else if (sent[p.id]) btn = '<button disabled>Request भेजी गई</button>';
       else btn = `<button data-a="req" data-id="${esc(p.id)}">Request भेजें</button>`;
-      h += `<div class="person"><b>${esc(p.name)}</b><br>लगभग ${Math.max(100, Math.round(p.d / 100) * 100)} मीटर दूर${btn}</div>`;
+      h += `<div class="person"><b>${esc(p.name)}</b><br>लगभग ${Math.max(100, Math.round(p.d / 100) * 100)} मीटर दूर${btn}
+        <div class="row">
+          <button class="gray" data-a="blk" data-id="${esc(p.id)}" data-n="${esc(p.name)}">Block</button>
+          <button class="gray" data-a="rep" data-id="${esc(p.id)}" data-n="${esc(p.name)}">Report</button>
+        </div></div>`;
+    });
+  }
+  const bl = Object.entries(blocked);
+  if (bl.length) {
+    h += "<h3>Blocked लोग</h3>";
+    bl.forEach(([id, b]) => {
+      h += `<div class="person"><b>${esc(b.name || "अनाम")}</b>
+        <button class="gray" data-a="unb" data-id="${esc(id)}">Unblock</button></div>`;
     });
   }
   $("out").innerHTML = h;
-  if (chatWith && !conns[chatWith]) closeChat();
+  if (chatWith && (!conns[chatWith] || isHidden(chatWith))) closeChat();
+}
+
+async function blockUser(id, name) {
+  if (!confirm(name + " को Block करें?\nConnection, Requests और Chat बंद हो जाएँगे।")) return false;
+  try {
+    await set(ref(db, `blocks/${myId}/${id}`), { name: name || "अनाम", t: Date.now() });
+    await set(ref(db, `blockedBy/${id}/${myId}`), true);
+    const dels = [
+      `connections/${myId}/${id}`, `connections/${id}/${myId}`,
+      `requests/${myId}/${id}`, `requests/${id}/${myId}`,
+      `sent/${myId}/${id}`, `sent/${id}/${myId}`
+    ];
+    for (const p of dels) { try { await remove(ref(db, p)); } catch (e) {} }
+    lastScan = lastScan.filter(p => p.id !== id);
+    setStatus(name + " Block हो गया");
+    return true;
+  } catch (e) { setStatus("Block में दिक्कत: " + e.message); return false; }
+}
+
+async function unblockUser(id) {
+  try {
+    await remove(ref(db, `blocks/${myId}/${id}`));
+    await remove(ref(db, `blockedBy/${id}/${myId}`));
+    setStatus("Unblock हो गया");
+  } catch (e) { setStatus("दिक्कत: " + e.message); }
+}
+
+async function reportUser(id, name) {
+  const reason = prompt(name + " की Report का कारण लिखें (200 अक्षर तक):");
+  if (!reason || !reason.trim()) return;
+  try {
+    await push(ref(db, "reports"), {
+      by: myId, against: id, againstName: String(name || "").slice(0, 40),
+      reason: reason.trim().slice(0, 200), t: Date.now()
+    });
+    setStatus("Report भेज दी गई। धन्यवाद।");
+  } catch (e) { setStatus("Report में दिक्कत: " + e.message); }
 }
 
 const chatId = other => [myId, other].sort().join("_");
 
 function openChat(id, name) {
-  if (!conns[id]) return;
-  chatWith = id;
+  if (!conns[id] || isHidden(id)) return;
+  chatWith = id; chatName = name;
   $("chatTitle").textContent = name;
   $("main").style.display = "none";
   $("chat").style.display = "flex";
@@ -221,19 +287,23 @@ function closeChat() {
 
 async function sendMsg() {
   const text = $("msgInput").value.trim();
-  if (!text || !chatWith || !conns[chatWith]) return;
+  if (!text || !chatWith || !conns[chatWith] || isHidden(chatWith)) return;
   $("msgInput").value = "";
-  await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, text, t: Date.now() });
+  try {
+    await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, text, t: Date.now() });
+  } catch (e) { setStatus("संदेश नहीं गया: " + e.message); }
 }
 
 function startListeners() {
   unsubs.push(onValue(ref(db, "requests/" + myId), s => { incoming = s.val() || {}; render(); }));
   unsubs.push(onValue(ref(db, "sent/" + myId), s => { sent = s.val() || {}; render(); }));
   unsubs.push(onValue(ref(db, "connections/" + myId), s => { conns = s.val() || {}; render(); }));
+  unsubs.push(onValue(ref(db, "blocks/" + myId), s => { blocked = s.val() || {}; render(); }));
+  unsubs.push(onValue(ref(db, "blockedBy/" + myId), s => { blockedBy = s.val() || {}; render(); }));
 }
 function stopListeners() {
   unsubs.forEach(u => u()); unsubs = [];
-  incoming = {}; sent = {}; conns = {}; lastScan = [];
+  incoming = {}; sent = {}; conns = {}; blocked = {}; blockedBy = {}; lastScan = [];
 }
 
 onAuthStateChanged(auth, user => {
@@ -270,6 +340,11 @@ document.addEventListener("click", async e => {
     else if (a === "chat") openChat(id, n);
     else if (a === "back") closeChat();
     else if (a === "send") await sendMsg();
+    else if (a === "blk") await blockUser(id, n);
+    else if (a === "unb") await unblockUser(id);
+    else if (a === "rep") await reportUser(id, n);
+    else if (a === "blockChat") { if (chatWith) { const ok = await blockUser(chatWith, chatName); if (ok) closeChat(); } }
+    else if (a === "reportChat") { if (chatWith) await reportUser(chatWith, chatName); }
     else if (a === "req") {
       localStorage.setItem("nearuName", myName());
       await set(ref(db, `requests/${id}/${myId}`), { name: myName(), t: Date.now() });
