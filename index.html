@@ -149,7 +149,7 @@ async function scan() {
       const u = data[id];
       if (now - u.t > 180000) continue;
       const d = dist(myPos, u);
-      if (d <= 1000) out.push({ id, name: u.name, d });
+      if (d <= 500000) out.push({ id, name: u.name, d });
     }
     out.sort((a, b) => a.d - b.d);
     lastScan = out;
