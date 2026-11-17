@@ -97,7 +97,10 @@ async function publish() {
   if (!myId) return;
   try {
     myPos = await getPos();
-    await set(ref(db, "users/" + myId), { name: myName(), lat: myPos.lat, lng: myPos.lng, t: Date.now() });
+    // सटीक पता नहीं, लगभग 150 मीटर के ग्रिड में गोल करके भेजते हैं
+    const G = 0.0015;
+    const rl = Math.round(myPos.lat / G) * G, rg = Math.round(myPos.lng / G) * G;
+    await set(ref(db, "users/" + myId), { name: myName(), lat: +rl.toFixed(5), lng: +rg.toFixed(5), t: Date.now() });
     setStatus("Visible हैं ✔");
   } catch (e) { setStatus("लोकेशन/नेट की दिक्कत: " + e.message); }
 }
@@ -144,9 +147,9 @@ async function scan() {
     for (const id in data) {
       if (id === myId) continue;
       const u = data[id];
-      if (now - u.t > 600000) continue;
+      if (now - u.t > 180000) continue;
       const d = dist(myPos, u);
-      if (d <= 5000) out.push({ id, name: u.name, d });
+      if (d <= 1000) out.push({ id, name: u.name, d });
     }
     out.sort((a, b) => a.d - b.d);
     lastScan = out;
@@ -183,7 +186,7 @@ function render() {
       else if (incoming[p.id]) btn = "<div>इन्होंने आपको Request भेजी है (ऊपर देखें)</div>";
       else if (sent[p.id]) btn = '<button disabled>Request भेजी गई</button>';
       else btn = `<button data-a="req" data-id="${esc(p.id)}">Request भेजें</button>`;
-      h += `<div class="person"><b>${esc(p.name)}</b><br>लगभग ${Math.round(p.d)} मीटर दूर${btn}</div>`;
+      h += `<div class="person"><b>${esc(p.name)}</b><br>लगभग ${Math.max(100, Math.round(p.d / 100) * 100)} मीटर दूर${btn}</div>`;
     });
   }
   $("out").innerHTML = h;
