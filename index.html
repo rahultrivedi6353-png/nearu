@@ -10,7 +10,10 @@
   header button{width:auto;margin:0;padding:6px 10px;background:#fff3;font-size:14px}
   header .sp{flex:1}
   .box{padding:16px}
-  input{width:100%;padding:12px;font-size:16px;box-sizing:border-box;margin-bottom:10px;border:1px solid #ccc;border-radius:8px}
+  input,textarea,select{width:100%;padding:12px;font-size:16px;box-sizing:border-box;margin-bottom:10px;border:1px solid #ccc;border-radius:8px;font-family:inherit;background:#fff}
+  textarea{resize:none;height:70px}
+  details{background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:10px;box-shadow:0 1px 3px #0002}
+  summary{font-weight:bold;padding:4px 0}
   button{width:100%;padding:12px;font-size:16px;border:0;border-radius:8px;background:#3F51B5;color:#fff;margin:6px 0}
   button.off{background:#c62828}
   button.ok{background:#2e7d32}
@@ -21,6 +24,8 @@
   #status,#loginMsg{margin:10px 0;font-size:14px;color:#555}
   h3{margin:18px 0 6px}
   .person{background:#fff;padding:12px;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px #0002}
+  .bio{font-size:14px;color:#555;margin:2px 0 4px}
+  .av{font-size:22px;margin-right:4px}
   #chat{display:none;flex-direction:column;height:100vh}
   #msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column}
   .m{max-width:75%;padding:8px 12px;border-radius:12px;margin-bottom:6px;word-wrap:break-word}
@@ -45,7 +50,18 @@
 <div id="main" style="display:none">
   <header>NearU<span class="sp"></span><button data-a="logout">Logout</button></header>
   <div class="box">
-    <input id="name" placeholder="आपका नाम">
+    <input id="name" placeholder="आपका नाम" maxlength="40">
+    <details>
+      <summary>मेरी Profile</summary>
+      <p style="font-size:13px;color:#555">अवतार और बायो उन्हें दिखेंगे जिनके आप आसपास Visible हैं या जिन्हें आप Request भेजते हैं। फोन नंबर या पता न लिखें।</p>
+      <select id="av">
+        <option>🙂</option><option>😎</option><option>🤓</option><option>🥳</option>
+        <option>🧑‍💻</option><option>🎧</option><option>📚</option><option>⚽</option>
+        <option>🎨</option><option>🌸</option><option>🐱</option><option>🦁</option>
+      </select>
+      <textarea id="bio" placeholder="अपने बारे में कुछ लिखें (150 अक्षर तक)" maxlength="150"></textarea>
+      <button data-a="saveProfile">Profile सेव करें</button>
+    </details>
     <button id="visBtn" data-a="vis">Visible ON करें</button>
     <button data-a="scan">आसपास के लोग खोजें</button>
     <div id="status">तैयार</div>
@@ -87,13 +103,22 @@ const auth = getAuth(app);
 
 const $ = id => document.getElementById(id);
 const setStatus = t => $("status").textContent = t;
-const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const myName = () => $("name").value.trim() || localStorage.getItem("nearuName") || "अनाम";
+const myBio = () => $("bio").value.trim().slice(0, 150);
+const myAv = () => $("av").value || "🙂";
+const who = x => `<span class="av">${esc(x.av || "🙂")}</span><b>${esc(x.name || "अनाम")}</b>` + (x.bio ? `<div class="bio">${esc(x.bio)}</div>` : "");
 
 let myId = null, visible = false, timer = null, myPos = null;
 let lastScan = [], incoming = {}, sent = {}, conns = {}, blocked = {}, blockedBy = {};
 let chatWith = null, chatName = "", chatUnsub = null, unsubs = [];
 const isHidden = id => !!(blocked[id] || blockedBy[id]);
+
+function saveProfileLocal() {
+  localStorage.setItem("nearuName", $("name").value.trim());
+  localStorage.setItem("nearuBio", myBio());
+  localStorage.setItem("nearuAv", myAv());
+}
 
 function getPos() {
   return new Promise((res, rej) =>
@@ -108,7 +133,10 @@ async function publish() {
     myPos = await getPos();
     const G = 0.0015;
     const rl = Math.round(myPos.lat / G) * G, rg = Math.round(myPos.lng / G) * G;
-    await set(ref(db, "users/" + myId), { name: myName(), lat: +rl.toFixed(5), lng: +rg.toFixed(5), t: Date.now() });
+    await set(ref(db, "users/" + myId), {
+      name: myName(), bio: myBio(), av: myAv(),
+      lat: +rl.toFixed(5), lng: +rg.toFixed(5), t: Date.now()
+    });
     setStatus("Visible हैं ✔");
   } catch (e) { setStatus("लोकेशन/नेट की दिक्कत: " + e.message); }
 }
@@ -125,7 +153,7 @@ async function toggleVisible() {
   if (!visible) {
     const name = $("name").value.trim();
     if (!name) { setStatus("पहले अपना नाम लिखें"); return; }
-    localStorage.setItem("nearuName", name);
+    saveProfileLocal();
     visible = true;
     $("visBtn").textContent = "Invisible हो जाएँ";
     $("visBtn").className = "off";
@@ -157,7 +185,7 @@ async function scan() {
       const u = data[id];
       if (now - u.t > 180000) continue;
       const d = dist(myPos, u);
-      if (d <= 1000) out.push({ id, name: u.name, d });
+      if (d <= 1000) out.push({ id, name: u.name, bio: u.bio || "", av: u.av || "🙂", d });
     }
     out.sort((a, b) => a.d - b.d);
     lastScan = out;
@@ -172,7 +200,7 @@ function render() {
   if (inc.length) {
     h += "<h3>मिली Requests</h3>";
     inc.forEach(([id, r]) => {
-      h += `<div class="person"><b>${esc(r.name)}</b> आपसे जुड़ना चाहता है
+      h += `<div class="person">${who(r)} आपसे जुड़ना चाहता है
         <button class="ok" data-a="acc" data-id="${esc(id)}" data-n="${esc(r.name)}">Accept</button>
         <div class="row">
           <button class="off" data-a="rej" data-id="${esc(id)}">Reject</button>
@@ -185,7 +213,7 @@ function render() {
   if (cs.length) {
     h += "<h3>आपके Connections</h3>";
     cs.forEach(([id, c]) => {
-      h += `<div class="person"><b>${esc(c.name)}</b> ✔ Connected
+      h += `<div class="person">${who(c)} ✔ Connected
         <button class="ok" data-a="chat" data-id="${esc(id)}" data-n="${esc(c.name)}">Chat खोलें</button>
         <div class="row">
           <button class="off" data-a="del" data-id="${esc(id)}">Connection हटाएँ</button>
@@ -203,7 +231,7 @@ function render() {
       else if (incoming[p.id]) btn = "<div>इन्होंने आपको Request भेजी है (ऊपर देखें)</div>";
       else if (sent[p.id]) btn = '<button disabled>Request भेजी गई</button>';
       else btn = `<button data-a="req" data-id="${esc(p.id)}">Request भेजें</button>`;
-      h += `<div class="person"><b>${esc(p.name)}</b><br>लगभग ${Math.max(100, Math.round(p.d / 100) * 100)} मीटर दूर${btn}
+      h += `<div class="person">${who(p)}<div>लगभग ${Math.max(100, Math.round(p.d / 100) * 100)} मीटर दूर</div>${btn}
         <div class="row">
           <button class="gray" data-a="blk" data-id="${esc(p.id)}" data-n="${esc(p.name)}">Block</button>
           <button class="gray" data-a="rep" data-id="${esc(p.id)}" data-n="${esc(p.name)}">Report</button>
@@ -310,6 +338,8 @@ onAuthStateChanged(auth, user => {
   if (user) {
     myId = user.uid;
     $("name").value = localStorage.getItem("nearuName") || user.displayName || "";
+    $("bio").value = localStorage.getItem("nearuBio") || "";
+    $("av").value = localStorage.getItem("nearuAv") || "🙂";
     $("login").style.display = "none";
     $("main").style.display = "block";
     startListeners();
@@ -335,6 +365,11 @@ document.addEventListener("click", async e => {
       $("loginMsg").textContent = "";
     }
     else if (a === "logout") { await setInvisible(); closeChat(); await signOut(auth); }
+    else if (a === "saveProfile") {
+      saveProfileLocal();
+      if (visible) await publish();
+      setStatus("Profile सेव हो गई ✔");
+    }
     else if (a === "vis") await toggleVisible();
     else if (a === "scan") await scan();
     else if (a === "chat") openChat(id, n);
@@ -346,12 +381,13 @@ document.addEventListener("click", async e => {
     else if (a === "blockChat") { if (chatWith) { const ok = await blockUser(chatWith, chatName); if (ok) closeChat(); } }
     else if (a === "reportChat") { if (chatWith) await reportUser(chatWith, chatName); }
     else if (a === "req") {
-      localStorage.setItem("nearuName", myName());
-      await set(ref(db, `requests/${id}/${myId}`), { name: myName(), t: Date.now() });
+      saveProfileLocal();
+      await set(ref(db, `requests/${id}/${myId}`), { name: myName(), bio: myBio(), av: myAv(), t: Date.now() });
       await set(ref(db, `sent/${myId}/${id}`), true);
     } else if (a === "acc") {
-      await set(ref(db, `connections/${myId}/${id}`), { name: n, t: Date.now() });
-      await set(ref(db, `connections/${id}/${myId}`), { name: myName(), t: Date.now() });
+      const r = incoming[id] || {};
+      await set(ref(db, `connections/${myId}/${id}`), { name: n, bio: r.bio || "", av: r.av || "🙂", t: Date.now() });
+      await set(ref(db, `connections/${id}/${myId}`), { name: myName(), bio: myBio(), av: myAv(), t: Date.now() });
       await remove(ref(db, `requests/${myId}/${id}`));
       await remove(ref(db, `sent/${id}/${myId}`));
     } else if (a === "rej") {
