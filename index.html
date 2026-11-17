@@ -8,13 +8,14 @@
   body{font-family:sans-serif;margin:0;background:#f4f5fb;color:#222}
   header{background:#3F51B5;color:#fff;padding:16px;font-size:20px;font-weight:bold;display:flex;align-items:center;gap:12px}
   header button{width:auto;margin:0;padding:6px 12px;background:#fff3;font-size:14px}
+  header .sp{flex:1}
   .box{padding:16px}
   input{width:100%;padding:12px;font-size:16px;box-sizing:border-box;margin-bottom:10px;border:1px solid #ccc;border-radius:8px}
   button{width:100%;padding:12px;font-size:16px;border:0;border-radius:8px;background:#3F51B5;color:#fff;margin:6px 0}
   button.off{background:#c62828}
   button.ok{background:#2e7d32}
   button:disabled{background:#999}
-  #status{margin:10px 0;font-size:14px;color:#555}
+  #status,#loginMsg{margin:10px 0;font-size:14px;color:#555}
   h3{margin:18px 0 6px}
   .person{background:#fff;padding:12px;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px #0002}
   #chat{display:none;flex-direction:column;height:100vh}
@@ -29,8 +30,17 @@
 </head>
 <body>
 
-<div id="main">
+<div id="login">
   <header>NearU</header>
+  <div class="box">
+    <p>आसपास के लोगों से जुड़ने के लिए Login करें।</p>
+    <button data-a="login">Google से Login</button>
+    <div id="loginMsg"></div>
+  </div>
+</div>
+
+<div id="main" style="display:none">
+  <header>NearU<span class="sp"></span><button data-a="logout">Logout</button></header>
   <div class="box">
     <input id="name" placeholder="आपका नाम">
     <button id="visBtn" data-a="vis">Visible ON करें</button>
@@ -52,35 +62,52 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, remove, get, onValue, onDisconnect, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-const app = initializeApp({ databaseURL: "https://nearu-8435f-default-rtdb.firebaseio.com" });
+const firebaseConfig = {
+  apiKey: "AIzaSyDJhKln7MOf7cPkpjLKgOtajbMhmNzE_tA",
+  authDomain: "nearu-8435f.firebaseapp.com",
+  databaseURL: "https://nearu-8435f-default-rtdb.firebaseio.com",
+  projectId: "nearu-8435f",
+  storageBucket: "nearu-8435f.firebasestorage.app",
+  messagingSenderId: "383886866215",
+  appId: "1:383886866215:web:8dcca0d1e9297894051b02"
+};
+const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
 
-const myId = localStorage.getItem("nearuId") || ("u" + Math.random().toString(36).slice(2, 10));
-localStorage.setItem("nearuId", myId);
 const $ = id => document.getElementById(id);
-$("name").value = localStorage.getItem("nearuName") || "";
 const setStatus = t => $("status").textContent = t;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const myName = () => $("name").value.trim() || localStorage.getItem("nearuName") || "अनाम";
 
-let visible = false, timer = null, myPos = null;
+let myId = null, visible = false, timer = null, myPos = null;
 let lastScan = [], incoming = {}, sent = {}, conns = {};
-let chatWith = null, chatUnsub = null;
+let chatWith = null, chatUnsub = null, unsubs = [];
 
 function getPos() {
   return new Promise((res, rej) =>
     navigator.geolocation.getCurrentPosition(
       p => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      e => rej(e), { enableHighAccuracy: true, timeout: 15000 }));
+      e => rej(e), { enableHighAccuracy: false, timeout: 40000, maximumAge: 60000 }));
 }
 
 async function publish() {
+  if (!myId) return;
   try {
     myPos = await getPos();
     await set(ref(db, "users/" + myId), { name: myName(), lat: myPos.lat, lng: myPos.lng, t: Date.now() });
     setStatus("Visible हैं ✔");
   } catch (e) { setStatus("लोकेशन/नेट की दिक्कत: " + e.message); }
+}
+
+async function setInvisible() {
+  visible = false;
+  clearInterval(timer);
+  $("visBtn").textContent = "Visible ON करें";
+  $("visBtn").className = "";
+  if (myId) { try { await remove(ref(db, "users/" + myId)); } catch (e) {} }
 }
 
 async function toggleVisible() {
@@ -95,11 +122,7 @@ async function toggleVisible() {
     await publish();
     timer = setInterval(publish, 20000);
   } else {
-    visible = false;
-    clearInterval(timer);
-    await remove(ref(db, "users/" + myId));
-    $("visBtn").textContent = "Visible ON करें";
-    $("visBtn").className = "";
+    await setInvisible();
     setStatus("अब आप Invisible हैं");
   }
 }
@@ -200,9 +223,31 @@ async function sendMsg() {
   await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, text, t: Date.now() });
 }
 
-onValue(ref(db, "requests/" + myId), s => { incoming = s.val() || {}; render(); });
-onValue(ref(db, "sent/" + myId), s => { sent = s.val() || {}; render(); });
-onValue(ref(db, "connections/" + myId), s => { conns = s.val() || {}; render(); });
+function startListeners() {
+  unsubs.push(onValue(ref(db, "requests/" + myId), s => { incoming = s.val() || {}; render(); }));
+  unsubs.push(onValue(ref(db, "sent/" + myId), s => { sent = s.val() || {}; render(); }));
+  unsubs.push(onValue(ref(db, "connections/" + myId), s => { conns = s.val() || {}; render(); }));
+}
+function stopListeners() {
+  unsubs.forEach(u => u()); unsubs = [];
+  incoming = {}; sent = {}; conns = {}; lastScan = [];
+}
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    myId = user.uid;
+    $("name").value = localStorage.getItem("nearuName") || user.displayName || "";
+    $("login").style.display = "none";
+    $("main").style.display = "block";
+    startListeners();
+  } else {
+    myId = null;
+    stopListeners();
+    $("main").style.display = "none";
+    $("chat").style.display = "none";
+    $("login").style.display = "block";
+  }
+});
 
 $("msgInput").addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
 
@@ -211,7 +256,13 @@ document.addEventListener("click", async e => {
   if (!b) return;
   const a = b.dataset.a, id = b.dataset.id, n = b.dataset.n;
   try {
-    if (a === "vis") await toggleVisible();
+    if (a === "login") {
+      $("loginMsg").textContent = "Login हो रहा है...";
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      $("loginMsg").textContent = "";
+    }
+    else if (a === "logout") { await setInvisible(); closeChat(); await signOut(auth); }
+    else if (a === "vis") await toggleVisible();
     else if (a === "scan") await scan();
     else if (a === "chat") openChat(id, n);
     else if (a === "back") closeChat();
@@ -232,7 +283,10 @@ document.addEventListener("click", async e => {
       await remove(ref(db, `connections/${myId}/${id}`));
       await remove(ref(db, `connections/${id}/${myId}`));
     }
-  } catch (err) { setStatus("दिक्कत: " + err.message); }
+  } catch (err) {
+    if (a === "login") $("loginMsg").textContent = "Login की दिक्कत: " + err.message;
+    else setStatus("दिक्कत: " + err.message);
+  }
 });
 </script>
 </body>
