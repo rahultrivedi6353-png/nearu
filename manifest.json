@@ -1,0 +1,13 @@
+{
+  "name": "NearU",
+  "short_name": "NearU",
+  "description": "आसपास के लोगों से जुड़ें",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5fb",
+  "theme_color": "#3F51B5",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
