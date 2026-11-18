@@ -422,7 +422,7 @@ document.addEventListener("click", async e => {
     else if (a === "send") await sendMsg();
     else if (a === "blk") await blockUser(id, n);
     else if (a === "unb") await unblockUser(id);
- else if (a === "rep") await reportUser(id, n);
+    else if (a === "rep") await reportUser(id, n);
     else if (a === "blockChat") { if (chatWith) { const ok = await blockUser(chatWith, chatName); if (ok) closeChat(); } }
     else if (a === "reportChat") { if (chatWith) await reportUser(chatWith, chatName); }
     else if (a === "req") {
