@@ -43,11 +43,13 @@
   .bio{font-size:14px;color:var(--mut);margin-top:2px;word-wrap:break-word}
   .meta{font-size:13px;color:var(--mut);margin-top:3px}
   .tag{display:inline-block;background:#dcfce7;color:#166534;border-radius:999px;font-size:12px;padding:2px 8px;margin-left:6px;font-weight:600}
+  .tag.new{background:#fee2e2;color:#991b1b}
   .empty{text-align:center;color:var(--mut);padding:26px 10px;font-size:14px}
   details.card summary{font-weight:700;font-size:16px;list-style:none;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
   details.card summary::after{content:"▾";color:var(--mut)}
   details.card[open] summary::after{content:"▴"}
   .hint{font-size:13px;color:var(--mut);margin:8px 0 10px}
+  #toast{display:none;position:fixed;top:calc(10px + env(safe-area-inset-top));left:12px;right:12px;z-index:50;background:#111827;color:#fff;padding:13px 16px;border-radius:14px;font-size:15px;box-shadow:0 6px 20px #00000040}
 
   #chat{display:none;position:fixed;inset:0;flex-direction:column;background:var(--bg);z-index:20}
   #chat header{position:static}
@@ -67,6 +69,8 @@
 </style>
 </head>
 <body>
+
+<div id="toast"></div>
 
 <div id="login" class="login">
   <div class="hero">
@@ -99,6 +103,8 @@
     </details>
     <button id="visBtn" class="btn" data-a="vis">👁 Visible ON करें</button>
     <button class="btn gray" data-a="scan">🔍 आसपास के लोग खोजें</button>
+    <button id="notifBtn" class="btn gray" data-a="notif">🔔 Notifications चालू करें</button>
+    <div id="notifHint" class="hint" style="margin-top:-2px">नई Request या संदेश आने पर बताएगा। ऐप खुला या बैकग्राउंड में हो तभी।</div>
     <div class="pill"><span id="dot" class="dot"></span><span id="status">तैयार</span></div>
     <div id="out"></div>
   </div>
@@ -117,6 +123,8 @@
     <button class="btn" data-a="send">भेजें</button>
   </div>
 </div>
+
+<script>window.addEventListener('error',function(e){var m=document.getElementById('loginMsg');if(m)m.textContent='गलती: '+e.message});window.addEventListener('unhandledrejection',function(e){var m=document.getElementById('loginMsg');if(m)m.textContent='गलती: '+(e.reason&&e.reason.message||e.reason)});</script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -148,8 +156,93 @@ const hhmm = t => { try { return new Date(t).toLocaleTimeString("hi-IN", { hour:
 let myId = null, visible = false, timer = null, myPos = null;
 let lastScan = [], incoming = {}, sent = {}, conns = {}, blocked = {}, blockedBy = {};
 let chatWith = null, chatName = "", chatUnsub = null, unsubs = [];
+let reqSeen = null, chatWatch = {}, lastKey = {}, unread = {}, toastTimer = null;
 const isHidden = id => !!(blocked[id] || blockedBy[id]);
 
+/* ---------- Notifications ---------- */
+function notifState() {
+  return ("Notification" in window) && Notification.permission === "granted" && localStorage.getItem("nearuNotif") !== "0";
+}
+function updateNotifBtn() {
+  const b = $("notifBtn");
+  if (!("Notification" in window)) { b.textContent = "🔔 इस ब्राउज़र में उपलब्ध नहीं"; b.disabled = true; return; }
+  if (Notification.permission === "denied") { b.textContent = "🔕 अनुमति बंद है (Settings में Allow करें)"; return; }
+  b.textContent = notifState() ? "🔕 Notifications बंद करें" : "🔔 Notifications चालू करें";
+}
+function showToast(t) {
+  const el = $("toast");
+  el.textContent = t; el.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = "none"; }, 4000);
+}
+async function notify(title, body, tag) {
+  if (document.visibilityState === "visible") {
+    showToast(title + " — " + body);
+    try { navigator.vibrate && navigator.vibrate(120); } catch (e) {}
+    return;
+  }
+  if (!notifState()) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(title, { body, tag, icon: "icon.svg", badge: "icon.svg", vibrate: [200, 100, 200], renotify: true });
+  } catch (e) {}
+}
+async function toggleNotif() {
+  if (!("Notification" in window)) { setStatus("इस ब्राउज़र में Notification उपलब्ध नहीं"); return; }
+  if (notifState()) { localStorage.setItem("nearuNotif", "0"); setStatus("Notifications बंद"); updateNotifBtn(); return; }
+  if (Notification.permission === "default") {
+    const p = await Notification.requestPermission();
+    if (p !== "granted") { setStatus("अनुमति नहीं मिली"); updateNotifBtn(); return; }
+  }
+  if (Notification.permission === "denied") { setStatus("Settings → Apps → NearU → Notifications में Allow करें"); updateNotifBtn(); return; }
+  localStorage.setItem("nearuNotif", "1");
+  updateNotifBtn();
+  setStatus("Notifications चालू ✔");
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification("NearU", { body: "Notifications चालू हो गईं ✔", icon: "icon.svg" });
+  } catch (e) {}
+}
+function updateTitle() {
+  const n = Object.keys(unread).length + Object.keys(incoming).filter(id => !isHidden(id)).length;
+  document.title = (n ? "(" + n + ") " : "") + "NearU";
+  try { if (navigator.setAppBadge) { n ? navigator.setAppBadge(n) : navigator.clearAppBadge(); } } catch (e) {}
+}
+const chatId = other => [myId, other].sort().join("_");
+function markSeen(id) {
+  try { localStorage.setItem("nearuSeen_" + chatId(id), String(Date.now())); } catch (e) {}
+  delete unread[id];
+}
+function attachWatch(id) {
+  const q = query(ref(db, "chats/" + chatId(id)), limitToLast(1));
+  let first = true;
+  chatWatch[id] = onValue(q, s => {
+    const v = s.val();
+    if (!v) { first = false; return; }
+    const key = Object.keys(v)[0], m = v[key];
+    if (first) {
+      first = false; lastKey[id] = key;
+      const ls = +localStorage.getItem("nearuSeen_" + chatId(id)) || 0;
+      if (m.from !== myId && m.t > ls) { unread[id] = true; render(); }
+      return;
+    }
+    if (key === lastKey[id]) return;
+    lastKey[id] = key;
+    if (m.from === myId) return;
+    if (chatWith === id && document.visibilityState === "visible") { markSeen(id); return; }
+    unread[id] = true; render();
+    notify((conns[id] && conns[id].name) || "नया संदेश", String(m.text || "").slice(0, 80), "msg-" + id);
+  }, () => {});
+}
+function syncChatWatchers() {
+  const want = new Set(Object.keys(conns).filter(id => !isHidden(id)));
+  for (const id of Object.keys(chatWatch)) {
+    if (!want.has(id)) { chatWatch[id](); delete chatWatch[id]; delete lastKey[id]; delete unread[id]; }
+  }
+  want.forEach(id => { if (!chatWatch[id]) attachWatch(id); });
+}
+
+/* ---------- Profile / Location ---------- */
 function saveProfileLocal() {
   localStorage.setItem("nearuName", $("name").value.trim());
   localStorage.setItem("nearuBio", myBio());
@@ -234,6 +327,7 @@ async function scan() {
   } catch (e) { setStatus("दिक्कत: " + e.message); }
 }
 
+/* ---------- Render ---------- */
 function render() {
   let h = "";
   const inc = Object.entries(incoming).filter(([id]) => !isHidden(id));
@@ -253,7 +347,8 @@ function render() {
   h += `<h3>🤝 आपके Connections ${cs.length ? `<span class="cnt">${cs.length}</span>` : ""}</h3>`;
   if (!cs.length) h += `<div class="empty">अभी कोई Connection नहीं।<br>आसपास के लोग खोजकर Request भेजें।</div>`;
   cs.forEach(([id, c]) => {
-    h += `<div class="card">${head(c, '<span class="tag">Connected</span>')}
+    const tg = unread[id] ? '<span class="tag new">🔴 नया संदेश</span>' : '<span class="tag">Connected</span>';
+    h += `<div class="card">${head(c, tg)}
       <button class="btn" data-a="chat" data-id="${esc(id)}" data-n="${esc(c.name)}">💬 Chat खोलें</button>
       <div class="row">
         <button class="btn sm gray" data-a="del" data-id="${esc(id)}">हटाएँ</button>
@@ -287,8 +382,10 @@ function render() {
   }
   $("out").innerHTML = h;
   if (chatWith && (!conns[chatWith] || isHidden(chatWith))) closeChat();
+  updateTitle();
 }
 
+/* ---------- Block / Report ---------- */
 async function blockUser(id, name) {
   if (!confirm(name + " को Block करें?\nConnection, Requests और Chat बंद हो जाएँगे।")) return false;
   try {
@@ -326,13 +423,13 @@ async function reportUser(id, name) {
   } catch (e) { setStatus("Report में दिक्कत: " + e.message); }
 }
 
-const chatId = other => [myId, other].sort().join("_");
-
+/* ---------- Chat ---------- */
 function scrollMsgs() { const m = $("msgs"); m.scrollTop = m.scrollHeight; }
 
 function openChat(id, name) {
   if (!conns[id] || isHidden(id)) return;
   chatWith = id; chatName = name;
+  markSeen(id); updateTitle();
   $("chatTitle").textContent = name;
   $("main").style.display = "none";
   $("chat").style.display = "flex";
@@ -345,14 +442,17 @@ function openChat(id, name) {
       ? list.map(m => `<div class="m ${m.from === myId ? "me" : "them"}">${esc(m.text)}<small>${hhmm(m.t)}</small></div>`).join("")
       : '<div class="empty">अभी कोई संदेश नहीं। पहला संदेश भेजें 👋</div>';
     scrollMsgs();
+    if (document.visibilityState === "visible") markSeen(id);
   });
 }
 
 function closeChat() {
+  if (chatWith) markSeen(chatWith);
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
   chatWith = null;
   $("chat").style.display = "none";
   $("main").style.display = "block";
+  updateTitle();
 }
 
 async function sendMsg() {
@@ -365,16 +465,29 @@ async function sendMsg() {
   } catch (e) { setStatus("संदेश नहीं गया: " + e.message); }
 }
 
+/* ---------- Listeners ---------- */
 function startListeners() {
-  unsubs.push(onValue(ref(db, "requests/" + myId), s => { incoming = s.val() || {}; render(); }));
+  unsubs.push(onValue(ref(db, "requests/" + myId), s => {
+    const nv = s.val() || {};
+    if (reqSeen !== null) {
+      for (const id in nv) {
+        if (!reqSeen.has(id) && !isHidden(id)) notify("नई Request", (nv[id].name || "कोई") + " आपसे जुड़ना चाहता है", "req-" + id);
+      }
+    }
+    reqSeen = new Set(Object.keys(nv));
+    incoming = nv; render();
+  }));
   unsubs.push(onValue(ref(db, "sent/" + myId), s => { sent = s.val() || {}; render(); }));
-  unsubs.push(onValue(ref(db, "connections/" + myId), s => { conns = s.val() || {}; render(); }));
-  unsubs.push(onValue(ref(db, "blocks/" + myId), s => { blocked = s.val() || {}; render(); }));
-  unsubs.push(onValue(ref(db, "blockedBy/" + myId), s => { blockedBy = s.val() || {}; render(); }));
+  unsubs.push(onValue(ref(db, "connections/" + myId), s => { conns = s.val() || {}; syncChatWatchers(); render(); }));
+  unsubs.push(onValue(ref(db, "blocks/" + myId), s => { blocked = s.val() || {}; syncChatWatchers(); render(); }));
+  unsubs.push(onValue(ref(db, "blockedBy/" + myId), s => { blockedBy = s.val() || {}; syncChatWatchers(); render(); }));
 }
 function stopListeners() {
   unsubs.forEach(u => u()); unsubs = [];
+  Object.values(chatWatch).forEach(u => u());
+  chatWatch = {}; lastKey = {}; unread = {}; reqSeen = null;
   incoming = {}; sent = {}; conns = {}; blocked = {}; blockedBy = {}; lastScan = [];
+  document.title = "NearU";
 }
 
 onAuthStateChanged(auth, user => {
@@ -385,6 +498,7 @@ onAuthStateChanged(auth, user => {
     $("av").value = localStorage.getItem("nearuAv") || "🙂";
     $("login").style.display = "none";
     $("main").style.display = "block";
+    updateNotifBtn();
     startListeners();
     render();
   } else {
@@ -398,6 +512,7 @@ onAuthStateChanged(auth, user => {
 
 $("msgInput").addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
 $("msgInput").addEventListener("focus", () => setTimeout(scrollMsgs, 300));
+$("toast").addEventListener("click", () => { $("toast").style.display = "none"; });
 
 document.addEventListener("click", async e => {
   const b = e.target.closest("button[data-a]");
@@ -415,6 +530,7 @@ document.addEventListener("click", async e => {
       if (visible) await publish();
       setStatus("Profile सेव हो गई ✔");
     }
+    else if (a === "notif") await toggleNotif();
     else if (a === "vis") await toggleVisible();
     else if (a === "scan") await scan();
     else if (a === "chat") openChat(id, n);
