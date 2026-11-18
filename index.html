@@ -422,4 +422,32 @@ document.addEventListener("click", async e => {
     else if (a === "send") await sendMsg();
     else if (a === "blk") await blockUser(id, n);
     else if (a === "unb") await unblockUser(id);
- 
+ else if (a === "rep") await reportUser(id, n);
+    else if (a === "blockChat") { if (chatWith) { const ok = await blockUser(chatWith, chatName); if (ok) closeChat(); } }
+    else if (a === "reportChat") { if (chatWith) await reportUser(chatWith, chatName); }
+    else if (a === "req") {
+      saveProfileLocal();
+      await set(ref(db, `requests/${id}/${myId}`), { name: myName(), bio: myBio(), av: myAv(), t: Date.now() });
+      await set(ref(db, `sent/${myId}/${id}`), true);
+    } else if (a === "acc") {
+      const r = incoming[id] || {};
+      await set(ref(db, `connections/${myId}/${id}`), { name: n, bio: r.bio || "", av: r.av || "🙂", t: Date.now() });
+      await set(ref(db, `connections/${id}/${myId}`), { name: myName(), bio: myBio(), av: myAv(), t: Date.now() });
+      await remove(ref(db, `requests/${myId}/${id}`));
+      await remove(ref(db, `sent/${id}/${myId}`));
+    } else if (a === "rej") {
+      await remove(ref(db, `requests/${myId}/${id}`));
+      await remove(ref(db, `sent/${id}/${myId}`));
+    } else if (a === "del") {
+      await remove(ref(db, `connections/${myId}/${id}`));
+      await remove(ref(db, `connections/${id}/${myId}`));
+    }
+  } catch (err) {
+    if (a === "login") $("loginMsg").textContent = "Login की दिक्कत: " + err.message;
+    else setStatus("दिक्कत: " + err.message);
+  }
+});
+</script>
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+</body>
+</html>
