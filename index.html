@@ -6,122 +6,160 @@
 <title>NearU</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
-<meta name="theme-color" content="#4f46e5">
+<meta name="theme-color" content="#008069">
 <style>
-  :root{--p:#4f46e5;--p2:#6366f1;--bg:#f3f4fb;--card:#fff;--tx:#1f2430;--mut:#6b7280;--ok:#16a34a;--bad:#dc2626;--line:#e5e7eb}
+  :root{--g:#008069;--g2:#00a884;--bg:#efeae2;--out:#d9fdd3;--tx:#111b21;--mut:#667781;--line:#e9edef;--bad:#dc2626;--card:#fff}
   *{box-sizing:border-box}
-  html,body{margin:0;min-height:100%}
-  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--tx);-webkit-tap-highlight-color:transparent}
-  header{position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));display:flex;align-items:center;gap:8px;box-shadow:0 2px 10px #4f46e540}
-  header .logo{font-size:21px;font-weight:800;letter-spacing:.3px}
-  header .sp{flex:1}
-  header .title{flex:1;font-size:17px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .hb{background:#ffffff2e;color:#fff;border:0;border-radius:10px;padding:8px 12px;font-size:14px;font-weight:600;width:auto;margin:0}
-  .wrap{padding:16px;max-width:560px;margin:0 auto}
-  .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px #1f243012}
-  input,textarea,select{width:100%;padding:13px 14px;font-size:16px;border:1.5px solid var(--line);border-radius:12px;font-family:inherit;background:#fff;color:var(--tx);margin-bottom:10px;outline:none}
-  input:focus,textarea:focus,select:focus{border-color:var(--p2)}
+  html,body{margin:0;height:100%}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;color:var(--tx);background:#f0f2f5;-webkit-tap-highlight-color:transparent}
+  #splash{position:fixed;inset:0;background:var(--g);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;font-size:28px;font-weight:800;gap:6px}
+  #toast{display:none;position:fixed;top:calc(10px + env(safe-area-inset-top));left:12px;right:12px;z-index:90;background:#111b21;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;box-shadow:0 6px 20px #00000040}
+  .loginw{display:none;min-height:100vh;flex-direction:column;background:#fff}
+  .hero{text-align:center;padding:60px 20px 20px}
+  .hero h1{margin:6px 0 4px;font-size:30px;color:var(--g)}
+  .hero p{color:var(--mut);margin:0 0 22px}
+  .pad{padding:14px}
+  .hint{font-size:13px;color:var(--mut);margin:8px 0}
+  .c{text-align:center}
+  #app{display:none;flex-direction:column;height:100vh;height:100dvh}
+  .bar{background:var(--g);color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px;flex:none}
+  .ttl{flex:1;font-size:21px;font-weight:700}
+  #body{flex:1;min-height:0;overflow-y:auto;background:#fff}
+  section{display:none}
+  #nav{flex:none;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  #nav button{flex:1;position:relative;background:none;border:0;padding:8px 0 7px;font-size:12px;color:var(--mut);font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:600}
+  #nav button span{font-size:20px}
+  #nav button.on{color:var(--g)}
+  .bdg{position:absolute;top:2px;left:calc(50% + 6px);background:var(--g2);color:#fff;border-radius:999px;font-size:11px;min-width:18px;padding:1px 5px;font-style:normal;display:none}
+  .crow{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+  .crow:active{background:#f5f6f6}
+  .mid{flex:1;min-width:0}
+  .nm{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pv{font-size:14px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .rt{text-align:right;flex:none}
+  .tm{font-size:12px;color:var(--mut)}
+  .tm.g{color:var(--g2);font-weight:700}
+  .bdg2{display:inline-block;margin-top:4px;background:var(--g2);color:#fff;border-radius:999px;font-size:10px;padding:2px 7px}
+  .avc{width:50px;height:50px;border-radius:50%;background:#e1e7ea;display:flex;align-items:center;justify-content:center;font-size:26px;flex:none;overflow:hidden}
+  .avc img{width:100%;height:100%;object-fit:cover}
+  .avc.big{width:110px;height:110px;font-size:56px;margin:6px auto 10px}
+  .avc.sm{width:38px;height:38px;font-size:20px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:12px}
+  .ph{display:flex;gap:12px;align-items:center}
+  .bio{font-size:14px;color:var(--mut);margin-top:2px;word-wrap:break-word}
+  .meta{font-size:13px;color:var(--mut);margin-top:4px}
+  input,textarea,select{width:100%;padding:12px 14px;font-size:16px;border:1.5px solid var(--line);border-radius:12px;font-family:inherit;background:#fff;color:var(--tx);margin-bottom:10px;outline:none}
+  input:focus,textarea:focus,select:focus{border-color:var(--g2)}
+  input[type=file]{display:none}
   textarea{resize:none;height:76px}
-  .btn{display:block;width:100%;padding:14px;font-size:16px;font-weight:700;border:0;border-radius:14px;background:var(--p);color:#fff;margin:8px 0;font-family:inherit}
+  .btn{display:block;width:100%;padding:13px;font-size:16px;font-weight:700;border:0;border-radius:12px;background:var(--g);color:#fff;margin:8px 0;font-family:inherit}
   .btn:active{transform:scale(.98)}
-  .btn.ok{background:var(--ok)}
+  .btn.ok{background:var(--g2)}
   .btn.bad{background:var(--bad)}
-  .btn.gray{background:#eef0f5;color:#374151}
-  .btn.sm{padding:10px 6px;font-size:14px;margin:0;border-radius:12px}
+  .btn.gray{background:#eef0f2;color:#374151}
+  .btn.sm{padding:10px 6px;font-size:14px;margin:0;border-radius:10px}
   .btn:disabled{background:#c7cbd6;color:#fff}
   .row{display:flex;gap:8px;margin-top:8px}
   .row .btn{flex:1}
-  .pill{display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:9px 14px;font-size:14px;color:var(--mut);margin:4px 0 14px;box-shadow:0 1px 6px #1f24300d}
+  .pill{display:flex;align-items:center;gap:8px;background:#f0f2f5;border-radius:999px;padding:9px 14px;font-size:14px;color:var(--mut);margin:6px 0 12px}
   .dot{width:9px;height:9px;border-radius:50%;background:#9ca3af;flex:none}
-  .dot.on{background:var(--ok);box-shadow:0 0 0 4px #16a34a22}
-  h3{margin:20px 4px 8px;font-size:15px;color:#374151;display:flex;align-items:center;gap:8px}
-  h3 .cnt{background:var(--p);color:#fff;border-radius:999px;font-size:12px;padding:2px 8px}
-  .ph{display:flex;gap:12px;align-items:center}
-  .avc{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#e0e7ff,#fce7f3);display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
-  .pi{min-width:0}
-  .pn{font-weight:700;font-size:16px}
-  .bio{font-size:14px;color:var(--mut);margin-top:2px;word-wrap:break-word}
-  .meta{font-size:13px;color:var(--mut);margin-top:3px}
-  .tag{display:inline-block;background:#dcfce7;color:#166534;border-radius:999px;font-size:12px;padding:2px 8px;margin-left:6px;font-weight:600}
-  .tag.new{background:#fee2e2;color:#991b1b}
-  .empty{text-align:center;color:var(--mut);padding:26px 10px;font-size:14px}
-  details.card summary{font-weight:700;font-size:16px;list-style:none;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
-  details.card summary::after{content:"▾";color:var(--mut)}
-  details.card[open] summary::after{content:"▴"}
-  .hint{font-size:13px;color:var(--mut);margin:8px 0 10px}
-  #toast{display:none;position:fixed;top:calc(10px + env(safe-area-inset-top));left:12px;right:12px;z-index:50;background:#111827;color:#fff;padding:13px 16px;border-radius:14px;font-size:15px;box-shadow:0 6px 20px #00000040}
+  .dot.on{background:var(--g2);box-shadow:0 0 0 4px #00a88422}
+  h3{margin:18px 2px 8px;font-size:15px;color:var(--mut)}
+  .empty{text-align:center;color:var(--mut);padding:36px 14px;font-size:14px;line-height:1.5}
+  .link{background:none;border:0;color:var(--g);font-weight:700;font-size:14px;padding:6px;font-family:inherit}
 
   #chat{display:none;position:fixed;inset:0;flex-direction:column;background:var(--bg);z-index:20}
-  #chat header{position:static}
-  #msgs{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 12px;display:flex;flex-direction:column}
-  .m{max-width:78%;padding:9px 13px 6px;border-radius:18px;margin-bottom:8px;word-wrap:break-word;line-height:1.35}
-  .m small{display:block;font-size:11px;opacity:.65;margin-top:3px;text-align:right}
-  .me{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;align-self:flex-end;border-bottom-right-radius:5px}
-  .them{background:#fff;align-self:flex-start;border-bottom-left-radius:5px;box-shadow:0 1px 4px #1f24301a}
-  #sendRow{flex:none;display:flex;gap:8px;padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line)}
-  #sendRow input{margin:0;flex:1;border-radius:999px;padding:12px 16px}
-  #sendRow button{width:76px;margin:0;border-radius:999px;padding:12px 0;font-size:15px}
-  .login{min-height:100vh;display:flex;flex-direction:column}
-  .hero{text-align:center;padding:50px 20px 20px}
-  .hero .big{font-size:56px}
-  .hero h1{margin:6px 0 4px;font-size:30px;color:var(--p)}
-  .hero p{color:var(--mut);margin:0 0 22px}
+  #chat .bar{padding-top:calc(10px + env(safe-area-inset-top));padding-bottom:10px;position:relative}
+  .hb{background:none;color:#fff;border:0;font-size:22px;padding:4px 8px;font-family:inherit}
+  #cmenu{display:none;position:absolute;right:10px;top:calc(52px + env(safe-area-inset-top));background:#fff;border-radius:10px;box-shadow:0 6px 24px #00000040;z-index:30;overflow:hidden}
+  #cmenu button{display:block;width:100%;background:#fff;border:0;text-align:left;padding:13px 20px;font-size:15px;font-family:inherit;color:var(--tx)}
+  #msgs{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 10px;display:flex;flex-direction:column}
+  .m{max-width:80%;padding:7px 10px 4px;border-radius:10px;margin-bottom:5px;word-wrap:break-word;line-height:1.35;box-shadow:0 1px 1px #00000014}
+  .m small{display:block;font-size:11px;color:var(--mut);margin-top:2px;text-align:right}
+  .me{background:var(--out);align-self:flex-end;border-top-right-radius:2px}
+  .them{background:#fff;align-self:flex-start;border-top-left-radius:2px}
+  .mi{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-bottom:4px}
+  #sendRow{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:#f0f2f5}
+  #sendRow input{margin:0;flex:1;border-radius:999px;padding:11px 16px;border-color:#fff}
+  #sendRow .ic{background:none;border:0;font-size:24px;padding:4px 6px;width:auto;margin:0}
+  #sendRow .go{width:46px;height:46px;border-radius:50%;background:var(--g2);color:#fff;border:0;font-size:20px;margin:0;padding:0;flex:none}
+  #lb{display:none;position:fixed;inset:0;background:#000e;z-index:80;align-items:center;justify-content:center}
+  #lb img{max-width:100%;max-height:100%}
 </style>
 </head>
 <body>
 
+<div id="splash"><div style="font-size:64px">📍</div>NearU</div>
 <div id="toast"></div>
+<div id="lb" data-a="lbClose"><img id="lbImg" alt=""></div>
 
-<div id="login" class="login">
-  <div class="hero">
-    <div class="big">📍</div>
-    <h1>NearU</h1>
-    <p>आसपास के लोगों से अपनी मर्जी से जुड़ें</p>
-  </div>
-  <div class="wrap" style="width:100%">
-    <button class="btn" data-a="login">Google से Login</button>
-    <div id="loginMsg" class="hint" style="text-align:center"></div>
-  </div>
+<div id="login" class="loginw">
+  <div class="hero"><div style="font-size:64px">📍</div><h1>NearU</h1><p>आसपास के लोगों से अपनी मर्जी से जुड़ें</p></div>
+  <div class="pad"><button class="btn" data-a="login">Google से Login</button><div id="loginMsg" class="hint c"></div></div>
 </div>
 
-<div id="main" style="display:none">
-  <header><span class="logo">NearU</span><span class="sp"></span><button class="hb" data-a="logout">Logout</button></header>
-  <div class="wrap">
-    <div class="card">
-      <input id="name" placeholder="आपका नाम" maxlength="40" style="margin-bottom:0">
-    </div>
-    <details class="card">
-      <summary>मेरी Profile</summary>
-      <p class="hint">अवतार और बायो उन्हें दिखेंगे जिनके आप आसपास Visible हैं या जिन्हें आप Request भेजते हैं। फोन नंबर या पता न लिखें।</p>
+<div id="app">
+  <header class="bar"><span id="topTitle" class="ttl">NearU</span></header>
+  <div id="body">
+    <section id="t_chats"><div id="chatList"></div></section>
+
+    <section id="t_near" class="pad">
+      <button id="visBtn" class="btn" data-a="vis">👁 Visible ON करें</button>
+      <button class="btn gray" data-a="scan">🔍 आसपास के लोग खोजें</button>
+      <div class="pill"><span id="dot" class="dot"></span><span id="status">तैयार</span></div>
+      <div id="nearList"></div>
+    </section>
+
+    <section id="t_req" class="pad"><div id="reqList"></div></section>
+
+    <section id="t_me" class="pad">
+      <div id="myAvBox" class="avc big" data-a="pickPh"></div>
+      <div class="row" style="justify-content:center;margin-bottom:12px">
+        <button class="link" data-a="pickPh">📷 फोटो बदलें</button>
+        <button class="link" data-a="rmPh" style="color:var(--bad)">फोटो हटाएँ</button>
+      </div>
+      <input id="name" placeholder="आपका नाम" maxlength="40">
       <select id="av">
         <option>🙂</option><option>😎</option><option>🤓</option><option>🥳</option>
         <option>🧑‍💻</option><option>🎧</option><option>📚</option><option>⚽</option>
         <option>🎨</option><option>🌸</option><option>🐱</option><option>🦁</option>
       </select>
       <textarea id="bio" placeholder="अपने बारे में कुछ लिखें (150 अक्षर तक)" maxlength="150"></textarea>
-      <button class="btn" data-a="saveProfile" style="margin-bottom:0">Profile सेव करें</button>
-    </details>
-    <button id="visBtn" class="btn" data-a="vis">👁 Visible ON करें</button>
-    <button class="btn gray" data-a="scan">🔍 आसपास के लोग खोजें</button>
-    <button id="notifBtn" class="btn gray" data-a="notif">🔔 Notifications चालू करें</button>
-    <div id="notifHint" class="hint" style="margin-top:-2px">नई Request या संदेश आने पर बताएगा। ऐप खुला या बैकग्राउंड में हो तभी।</div>
-    <div class="pill"><span id="dot" class="dot"></span><span id="status">तैयार</span></div>
-    <div id="out"></div>
+      <div class="hint">बायो आसपास के लोगों को दिखता है। फोटो सिर्फ़ उन्हें दिखती है जिन्हें आप Request भेजें या जो आपके Connection हैं। फोन नंबर या पता न लिखें।</div>
+      <button class="btn" data-a="saveProfile">Profile सेव करें</button>
+      <button id="notifBtn" class="btn gray" data-a="notif">🔔 Notifications चालू करें</button>
+      <div id="blockedBox"></div>
+      <button class="btn gray" data-a="logout" style="margin-top:18px">Logout</button>
+    </section>
   </div>
+  <nav id="nav">
+    <button id="n_chats" data-a="tab" data-t="chats"><span>💬</span>चैट<i id="bChats" class="bdg"></i></button>
+    <button id="n_near" data-a="tab" data-t="near"><span>📍</span>आसपास</button>
+    <button id="n_req" data-a="tab" data-t="req"><span>📩</span>Requests<i id="bReq" class="bdg"></i></button>
+    <button id="n_me" data-a="tab" data-t="me"><span>👤</span>Profile</button>
+  </nav>
+  <input id="phFile" type="file" accept="image/*">
 </div>
 
 <div id="chat">
-  <header>
+  <header class="bar">
     <button class="hb" data-a="back">←</button>
-    <span id="chatTitle" class="title">Chat</span>
-    <button class="hb" data-a="blockChat">Block</button>
-    <button class="hb" data-a="reportChat">Report</button>
+    <div id="chatAv" class="avc sm"></div>
+    <span id="chatTitle" class="ttl" style="font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Chat</span>
+    <button class="hb" data-a="menu">⋮</button>
+    <div id="cmenu">
+      <button data-a="blockChat">🚫 Block</button>
+      <button data-a="reportChat">⚠️ Report</button>
+      <button data-a="delChat">❌ Connection हटाएँ</button>
+    </div>
   </header>
   <div id="msgs"></div>
   <div id="sendRow">
+    <button class="ic" data-a="pickImg">📎</button>
     <input id="msgInput" placeholder="संदेश लिखें" maxlength="500" autocomplete="off">
-    <button class="btn" data-a="send">भेजें</button>
+    <button class="go" data-a="send">➤</button>
   </div>
+  <input id="imgFile" type="file" accept="image/*">
 </div>
 
 <script>window.addEventListener('error',function(e){var m=document.getElementById('loginMsg');if(m)m.textContent='गलती: '+e.message});window.addEventListener('unhandledrejection',function(e){var m=document.getElementById('loginMsg');if(m)m.textContent='गलती: '+(e.reason&&e.reason.message||e.reason)});</script>
@@ -129,7 +167,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, remove, get, onValue, onDisconnect, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJhKln7MOf7cPkpjLKgOtajbMhmNzE_tA",
@@ -143,44 +181,48 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 const $ = id => document.getElementById(id);
-const setStatus = t => $("status").textContent = t;
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const okImg = s => typeof s === "string" && s.startsWith("data:image/jpeg;base64,");
 const myName = () => $("name").value.trim() || localStorage.getItem("nearuName") || "अनाम";
 const myBio = () => $("bio").value.trim().slice(0, 150);
 const myAv = () => $("av").value || "🙂";
-const head = (x, extra) => `<div class="ph"><div class="avc">${esc(x.av || "🙂")}</div><div class="pi"><div class="pn">${esc(x.name || "अनाम")}${extra || ""}</div>${x.bio ? `<div class="bio">${esc(x.bio)}</div>` : ""}</div></div>`;
 const hhmm = t => { try { return new Date(t).toLocaleTimeString("hi-IN", { hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
+const stamp = t => { try { const d = new Date(t), n = new Date(); return d.toDateString() === n.toDateString() ? hhmm(t) : d.toLocaleDateString("hi-IN", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
+const dlabel = d => d < 1000 ? "लगभग " + Math.max(100, Math.round(d / 100) * 100) + " मीटर दूर" : "लगभग " + (d < 10000 ? (d / 1000).toFixed(1) : Math.round(d / 1000)) + " किमी दूर";
+const av = (id, x, cls) => { const p = photos[id]; return `<div class="avc ${cls || ""}">${p ? `<img src="${p}">` : esc((x && x.av) || "🙂")}</div>`; };
 
-let myId = null, visible = false, timer = null, myPos = null;
+let myId = null, visible = false, timer = null, myPos = null, myPhoto = "";
 let lastScan = [], incoming = {}, sent = {}, conns = {}, blocked = {}, blockedBy = {};
-let chatWith = null, chatName = "", chatUnsub = null, unsubs = [];
-let reqSeen = null, chatWatch = {}, lastKey = {}, unread = {}, toastTimer = null;
+let chatWith = null, chatName = "", chatUnsub = null, unsubs = [], tab = "chats";
+let reqSeen = null, chatWatch = {}, profWatch = {}, lastKey = {}, lastInfo = {}, unread = {}, photos = {}, toastTimer = null;
 const isHidden = id => !!(blocked[id] || blockedBy[id]);
+const T = { chats: "NearU", near: "आसपास", req: "Requests", me: "Profile" };
+
+function showToast(t, ms) {
+  const el = $("toast"); el.textContent = t; el.style.display = "block";
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.style.display = "none"; }, ms || 4000);
+}
+const setStatus = t => { $("status").textContent = t; showToast(t, 2800); };
+
+function showTab(t) {
+  tab = t;
+  for (const k in T) { $("t_" + k).style.display = k === t ? "block" : "none"; $("n_" + k).classList.toggle("on", k === t); }
+  $("topTitle").textContent = T[t];
+}
 
 /* ---------- Notifications ---------- */
-function notifState() {
-  return ("Notification" in window) && Notification.permission === "granted" && localStorage.getItem("nearuNotif") !== "0";
-}
+function notifState() { return ("Notification" in window) && Notification.permission === "granted" && localStorage.getItem("nearuNotif") !== "0"; }
 function updateNotifBtn() {
   const b = $("notifBtn");
   if (!("Notification" in window)) { b.textContent = "🔔 इस ब्राउज़र में उपलब्ध नहीं"; b.disabled = true; return; }
   if (Notification.permission === "denied") { b.textContent = "🔕 अनुमति बंद है (Settings में Allow करें)"; return; }
   b.textContent = notifState() ? "🔕 Notifications बंद करें" : "🔔 Notifications चालू करें";
 }
-function showToast(t) {
-  const el = $("toast");
-  el.textContent = t; el.style.display = "block";
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.style.display = "none"; }, 4000);
-}
 async function notify(title, body, tag) {
-  if (document.visibilityState === "visible") {
-    showToast(title + " — " + body);
-    try { navigator.vibrate && navigator.vibrate(120); } catch (e) {}
-    return;
-  }
+  if (document.visibilityState === "visible") { showToast(title + " — " + body); try { navigator.vibrate && navigator.vibrate(120); } catch (e) {} return; }
   if (!notifState()) return;
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -195,24 +237,46 @@ async function toggleNotif() {
     if (p !== "granted") { setStatus("अनुमति नहीं मिली"); updateNotifBtn(); return; }
   }
   if (Notification.permission === "denied") { setStatus("Settings → Apps → NearU → Notifications में Allow करें"); updateNotifBtn(); return; }
-  localStorage.setItem("nearuNotif", "1");
-  updateNotifBtn();
-  setStatus("Notifications चालू ✔");
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    await reg.showNotification("NearU", { body: "Notifications चालू हो गईं ✔", icon: "icon.svg" });
-  } catch (e) {}
+  localStorage.setItem("nearuNotif", "1"); updateNotifBtn(); setStatus("Notifications चालू ✔");
+  try { const reg = await navigator.serviceWorker.ready; await reg.showNotification("NearU", { body: "Notifications चालू हो गईं ✔", icon: "icon.svg" }); } catch (e) {}
 }
 function updateTitle() {
-  const n = Object.keys(unread).length + Object.keys(incoming).filter(id => !isHidden(id)).length;
+  const u = Object.keys(unread).length, r = Object.keys(incoming).filter(id => !isHidden(id)).length;
+  $("bChats").textContent = u; $("bChats").style.display = u ? "inline-block" : "none";
+  $("bReq").textContent = r; $("bReq").style.display = r ? "inline-block" : "none";
+  const n = u + r;
   document.title = (n ? "(" + n + ") " : "") + "NearU";
   try { if (navigator.setAppBadge) { n ? navigator.setAppBadge(n) : navigator.clearAppBadge(); } } catch (e) {}
 }
-const chatId = other => [myId, other].sort().join("_");
-function markSeen(id) {
-  try { localStorage.setItem("nearuSeen_" + chatId(id), String(Date.now())); } catch (e) {}
-  delete unread[id];
+
+/* ---------- Images ---------- */
+function compress(file, max, q, sq) {
+  return new Promise((res, rej) => {
+    const img = new Image(), u = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(u);
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (sq) { const m = Math.min(sw, sh); sx = (sw - m) / 2; sy = (sh - m) / 2; sw = sh = m; }
+      const s = Math.min(1, max / Math.max(sw, sh));
+      const w = Math.max(1, Math.round(sw * s)), h = Math.max(1, Math.round(sh * s));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+      res(c.toDataURL("image/jpeg", q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); rej(new Error("फोटो खुल नहीं पाई")); };
+    img.src = u;
+  });
 }
+async function fitImage(file, max, q, sq, limit) {
+  let out = await compress(file, max, q, sq), qq = q, mm = max, n = 0;
+  while (out.length > limit && n < 6) { qq = Math.max(.3, qq - .1); mm = Math.round(mm * .85); out = await compress(file, mm, qq, sq); n++; }
+  if (out.length > limit) throw new Error("फोटो बहुत बड़ी है");
+  return out;
+}
+
+/* ---------- Chat watchers ---------- */
+const chatId = other => [myId, other].sort().join("_");
+function markSeen(id) { try { localStorage.setItem("nearuSeen_" + chatId(id), String(Date.now())); } catch (e) {} delete unread[id]; }
 function attachWatch(id) {
   const q = query(ref(db, "chats/" + chatId(id)), limitToLast(1));
   let first = true;
@@ -220,105 +284,94 @@ function attachWatch(id) {
     const v = s.val();
     if (!v) { first = false; return; }
     const key = Object.keys(v)[0], m = v[key];
+    lastInfo[id] = { text: okImg(m.img) ? ("📷 फोटो" + (m.text ? " " + m.text : "")) : (m.text || ""), t: m.t, mine: m.from === myId };
     if (first) {
       first = false; lastKey[id] = key;
       const ls = +localStorage.getItem("nearuSeen_" + chatId(id)) || 0;
-      if (m.from !== myId && m.t > ls) { unread[id] = true; render(); }
-      return;
+      if (m.from !== myId && m.t > ls) unread[id] = true;
+      render(); return;
     }
-    if (key === lastKey[id]) return;
+    if (key === lastKey[id]) { render(); return; }
     lastKey[id] = key;
-    if (m.from === myId) return;
-    if (chatWith === id && document.visibilityState === "visible") { markSeen(id); return; }
+    if (m.from === myId) { render(); return; }
+    if (chatWith === id && document.visibilityState === "visible") { markSeen(id); render(); return; }
     unread[id] = true; render();
-    notify((conns[id] && conns[id].name) || "नया संदेश", String(m.text || "").slice(0, 80), "msg-" + id);
+    notify((conns[id] && conns[id].name) || "नया संदेश", okImg(m.img) ? "📷 फोटो" : String(m.text || "").slice(0, 80), "msg-" + id);
   }, () => {});
 }
-function syncChatWatchers() {
+function syncWatchers() {
   const want = new Set(Object.keys(conns).filter(id => !isHidden(id)));
   for (const id of Object.keys(chatWatch)) {
-    if (!want.has(id)) { chatWatch[id](); delete chatWatch[id]; delete lastKey[id]; delete unread[id]; }
+    if (!want.has(id)) { chatWatch[id](); delete chatWatch[id]; delete lastKey[id]; delete unread[id]; delete lastInfo[id]; }
   }
   want.forEach(id => { if (!chatWatch[id]) attachWatch(id); });
+  const pw = new Set([...want, ...Object.keys(incoming).filter(id => !isHidden(id))]);
+  for (const id of Object.keys(profWatch)) {
+    if (!pw.has(id)) { profWatch[id](); delete profWatch[id]; delete photos[id]; }
+  }
+  pw.forEach(id => {
+    if (!profWatch[id]) profWatch[id] = onValue(ref(db, "profiles/" + id), s => {
+      const v = s.val(); photos[id] = (v && okImg(v.ph)) ? v.ph : ""; render();
+    }, () => { delete profWatch[id]; });
+  });
 }
 
-/* ---------- Profile / Location ---------- */
+/* ---------- Profile / Visible / Scan ---------- */
 function saveProfileLocal() {
   localStorage.setItem("nearuName", $("name").value.trim());
   localStorage.setItem("nearuBio", myBio());
   localStorage.setItem("nearuAv", myAv());
 }
-
 function getPos() {
-  return new Promise((res, rej) =>
-    navigator.geolocation.getCurrentPosition(
-      p => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      e => rej(e), { enableHighAccuracy: false, timeout: 40000, maximumAge: 60000 }));
+  return new Promise((res, rej) => navigator.geolocation.getCurrentPosition(
+    p => res({ lat: p.coords.latitude, lng: p.coords.longitude }), e => rej(e),
+    { enableHighAccuracy: false, timeout: 40000, maximumAge: 60000 }));
 }
-
 function setVisibleUI(on) {
   $("visBtn").textContent = on ? "🙈 Invisible हो जाएँ" : "👁 Visible ON करें";
   $("visBtn").className = on ? "btn bad" : "btn";
   $("dot").className = on ? "dot on" : "dot";
 }
-
 async function publish() {
   if (!myId) return;
   try {
     myPos = await getPos();
     const G = 0.0015;
     const rl = Math.round(myPos.lat / G) * G, rg = Math.round(myPos.lng / G) * G;
-    await set(ref(db, "users/" + myId), {
-      name: myName(), bio: myBio(), av: myAv(),
-      lat: +rl.toFixed(5), lng: +rg.toFixed(5), t: Date.now()
-    });
-    setStatus("आप Visible हैं ✔");
+    await set(ref(db, "users/" + myId), { name: myName(), bio: myBio(), av: myAv(), lat: +rl.toFixed(5), lng: +rg.toFixed(5), t: Date.now() });
+    $("status").textContent = "आप Visible हैं ✔";
   } catch (e) { setStatus("लोकेशन/नेट की दिक्कत: " + e.message); }
 }
-
 async function setInvisible() {
-  visible = false;
-  clearInterval(timer);
-  setVisibleUI(false);
+  visible = false; clearInterval(timer); setVisibleUI(false);
   if (myId) { try { await remove(ref(db, "users/" + myId)); } catch (e) {} }
 }
-
 async function toggleVisible() {
   if (!visible) {
-    const name = $("name").value.trim();
-    if (!name) { setStatus("पहले अपना नाम लिखें"); return; }
-    saveProfileLocal();
-    visible = true;
-    setVisibleUI(true);
+    if (!$("name").value.trim()) { showTab("me"); setStatus("पहले Profile में अपना नाम लिखें"); return; }
+    saveProfileLocal(); visible = true; setVisibleUI(true);
     onDisconnect(ref(db, "users/" + myId)).remove();
-    await publish();
-    timer = setInterval(publish, 20000);
-  } else {
-    await setInvisible();
-    setStatus("अब आप Invisible हैं");
-  }
+    await publish(); timer = setInterval(publish, 20000);
+  } else { await setInvisible(); setStatus("अब आप Invisible हैं"); }
 }
-
 function dist(a, b) {
   const R = 6371000, r = x => x * Math.PI / 180;
   const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-
 async function scan() {
   setStatus("खोज रहे हैं...");
   try {
     myPos = await getPos();
-    const snap = await get(ref(db, "users"));
-    const data = snap.val() || {};
+    const data = (await get(ref(db, "users"))).val() || {};
     const now = Date.now(), out = [];
     for (const id in data) {
       if (id === myId || isHidden(id)) continue;
       const u = data[id];
       if (now - u.t > 180000) continue;
       const d = dist(myPos, u);
-      if (d <= 1000) out.push({ id, name: u.name, bio: u.bio || "", av: u.av || "🙂", d });
+      if (d <= 1000000) out.push({ id, name: u.name, bio: u.bio || "", av: u.av || "🙂", d });   // 1000 किमी (टेस्टिंग)
     }
     out.sort((a, b) => a.d - b.d);
     lastScan = out;
@@ -326,61 +379,50 @@ async function scan() {
     render();
   } catch (e) { setStatus("दिक्कत: " + e.message); }
 }
-
-/* ---------- Render ---------- */
-function render() {
-  let h = "";
-  const inc = Object.entries(incoming).filter(([id]) => !isHidden(id));
-  if (inc.length) {
-    h += `<h3>📩 मिली Requests <span class="cnt">${inc.length}</span></h3>`;
-    inc.forEach(([id, r]) => {
-      h += `<div class="card">${head(r)}<div class="meta">आपसे जुड़ना चाहता है</div>
-        <button class="btn ok" data-a="acc" data-id="${esc(id)}" data-n="${esc(r.name)}">Accept</button>
-        <div class="row">
-          <button class="btn sm gray" data-a="rej" data-id="${esc(id)}">Reject</button>
-          <button class="btn sm gray" data-a="blk" data-id="${esc(id)}" data-n="${esc(r.name)}">Block</button>
-          <button class="btn sm gray" data-a="rep" data-id="${esc(id)}" data-n="${esc(r.name)}">Report</button>
-        </div></div>`;
-    });
-  }
+  /* ---------- Render ---------- */
+function renderChats() {
   const cs = Object.entries(conns).filter(([id]) => !isHidden(id));
-  h += `<h3>🤝 आपके Connections ${cs.length ? `<span class="cnt">${cs.length}</span>` : ""}</h3>`;
-  if (!cs.length) h += `<div class="empty">अभी कोई Connection नहीं।<br>आसपास के लोग खोजकर Request भेजें।</div>`;
-  cs.forEach(([id, c]) => {
-    const tg = unread[id] ? '<span class="tag new">🔴 नया संदेश</span>' : '<span class="tag">Connected</span>';
-    h += `<div class="card">${head(c, tg)}
-      <button class="btn" data-a="chat" data-id="${esc(id)}" data-n="${esc(c.name)}">💬 Chat खोलें</button>
-      <div class="row">
-        <button class="btn sm gray" data-a="del" data-id="${esc(id)}">हटाएँ</button>
-        <button class="btn sm gray" data-a="blk" data-id="${esc(id)}" data-n="${esc(c.name)}">Block</button>
-        <button class="btn sm gray" data-a="rep" data-id="${esc(id)}" data-n="${esc(c.name)}">Report</button>
-      </div></div>`;
-  });
+  if (!cs.length) { $("chatList").innerHTML = '<div class="empty">अभी कोई चैट नहीं।<br>"आसपास" टैब में लोगों को खोजकर Request भेजें।</div>'; return; }
+  cs.sort((a, b) => ((lastInfo[b[0]] || {}).t || b[1].t || 0) - ((lastInfo[a[0]] || {}).t || a[1].t || 0));
+  $("chatList").innerHTML = cs.map(([id, c]) => {
+    const li = lastInfo[id], un = unread[id];
+    const pv = li ? ((li.mine ? "आप: " : "") + esc(li.text)) : esc(c.bio || "नई Connection");
+    return `<div class="crow" data-a="chat" data-id="${esc(id)}" data-n="${esc(c.name)}">${av(id, c)}
+      <div class="mid"><div class="nm">${esc(c.name)}</div><div class="pv">${pv}</div></div>
+      <div class="rt"><div class="tm${un ? " g" : ""}">${li ? stamp(li.t) : ""}</div>${un ? '<span class="bdg2">●</span>' : ""}</div></div>`;
+  }).join("");
+}
+function renderNear() {
   const sl = lastScan.filter(p => !isHidden(p.id));
-  if (sl.length) {
-    h += `<h3>📍 आसपास के लोग <span class="cnt">${sl.length}</span></h3>`;
-    sl.forEach(p => {
-      let btn;
-      if (conns[p.id]) btn = '<div class="meta">✔ पहले से Connected</div>';
-      else if (incoming[p.id]) btn = '<div class="meta">इन्होंने आपको Request भेजी है (ऊपर देखें)</div>';
-      else if (sent[p.id]) btn = '<button class="btn" disabled>Request भेजी गई</button>';
-      else btn = `<button class="btn" data-a="req" data-id="${esc(p.id)}">Request भेजें</button>`;
-      h += `<div class="card">${head(p)}<div class="meta">लगभग ${Math.max(100, Math.round(p.d / 100) * 100)} मीटर दूर</div>${btn}
-        <div class="row">
-          <button class="btn sm gray" data-a="blk" data-id="${esc(p.id)}" data-n="${esc(p.name)}">Block</button>
-          <button class="btn sm gray" data-a="rep" data-id="${esc(p.id)}" data-n="${esc(p.name)}">Report</button>
-        </div></div>`;
-    });
-  }
+  if (!sl.length) { $("nearList").innerHTML = '<div class="empty">खोजने के लिए ऊपर का बटन दबाएँ।<br>जिन्हें आप खोजेंगे वही Visible लोग दिखेंगे।</div>'; return; }
+  $("nearList").innerHTML = sl.map(p => {
+    let btn;
+    if (conns[p.id]) btn = '<div class="meta">✔ पहले से Connected</div>';
+    else if (incoming[p.id]) btn = '<div class="meta">इन्होंने आपको Request भेजी है (Requests टैब देखें)</div>';
+    else if (sent[p.id]) btn = '<button class="btn" disabled>Request भेजी गई</button>';
+    else btn = `<button class="btn" data-a="req" data-id="${esc(p.id)}">Request भेजें</button>`;
+    return `<div class="card"><div class="ph">${av(p.id, p)}<div class="mid"><div class="nm">${esc(p.name)}</div>${p.bio ? `<div class="bio">${esc(p.bio)}</div>` : ""}<div class="meta">${dlabel(p.d)}</div></div></div>${btn}
+      <div class="row"><button class="btn sm gray" data-a="blk" data-id="${esc(p.id)}" data-n="${esc(p.name)}">Block</button>
+      <button class="btn sm gray" data-a="rep" data-id="${esc(p.id)}" data-n="${esc(p.name)}">Report</button></div></div>`;
+  }).join("");
+}
+function renderReq() {
+  const inc = Object.entries(incoming).filter(([id]) => !isHidden(id));
+  if (!inc.length) { $("reqList").innerHTML = '<div class="empty">अभी कोई नई Request नहीं।</div>'; return; }
+  $("reqList").innerHTML = inc.map(([id, r]) => `<div class="card"><div class="ph">${av(id, r)}<div class="mid"><div class="nm">${esc(r.name)}</div>${r.bio ? `<div class="bio">${esc(r.bio)}</div>` : ""}<div class="meta">आपसे जुड़ना चाहता है</div></div></div>
+    <button class="btn ok" data-a="acc" data-id="${esc(id)}" data-n="${esc(r.name)}">Accept</button>
+    <div class="row"><button class="btn sm gray" data-a="rej" data-id="${esc(id)}">Reject</button>
+    <button class="btn sm gray" data-a="blk" data-id="${esc(id)}" data-n="${esc(r.name)}">Block</button>
+    <button class="btn sm gray" data-a="rep" data-id="${esc(id)}" data-n="${esc(r.name)}">Report</button></div></div>`).join("");
+}
+function renderMe() {
+  $("myAvBox").innerHTML = myPhoto ? `<img src="${myPhoto}">` : esc(myAv());
   const bl = Object.entries(blocked);
-  if (bl.length) {
-    h += `<h3>🚫 Blocked लोग</h3>`;
-    bl.forEach(([id, b]) => {
-      h += `<div class="card"><div class="ph"><div class="avc">🚫</div><div class="pi"><div class="pn">${esc(b.name || "अनाम")}</div></div></div>
-        <button class="btn gray" data-a="unb" data-id="${esc(id)}">Unblock</button></div>`;
-    });
-  }
-  $("out").innerHTML = h;
+  $("blockedBox").innerHTML = bl.length ? "<h3>🚫 Blocked लोग</h3>" + bl.map(([id, b]) =>
+    `<div class="card"><div class="nm">${esc(b.name || "अनाम")}</div><button class="btn gray" data-a="unb" data-id="${esc(id)}">Unblock</button></div>`).join("") : "";
+}
+function render() {
+  renderChats(); renderNear(); renderReq(); renderMe();
   if (chatWith && (!conns[chatWith] || isHidden(chatWith))) closeChat();
   updateTitle();
 }
@@ -391,156 +433,148 @@ async function blockUser(id, name) {
   try {
     await set(ref(db, `blocks/${myId}/${id}`), { name: name || "अनाम", t: Date.now() });
     await set(ref(db, `blockedBy/${id}/${myId}`), true);
-    const dels = [
-      `connections/${myId}/${id}`, `connections/${id}/${myId}`,
-      `requests/${myId}/${id}`, `requests/${id}/${myId}`,
-      `sent/${myId}/${id}`, `sent/${id}/${myId}`
-    ];
-    for (const p of dels) { try { await remove(ref(db, p)); } catch (e) {} }
+    for (const p of [`connections/${myId}/${id}`, `connections/${id}/${myId}`, `requests/${myId}/${id}`, `requests/${id}/${myId}`, `sent/${myId}/${id}`, `sent/${id}/${myId}`]) { try { await remove(ref(db, p)); } catch (e) {} }
     lastScan = lastScan.filter(p => p.id !== id);
-    setStatus(name + " Block हो गया");
-    return true;
+    setStatus(name + " Block हो गया"); return true;
   } catch (e) { setStatus("Block में दिक्कत: " + e.message); return false; }
 }
-
 async function unblockUser(id) {
-  try {
-    await remove(ref(db, `blocks/${myId}/${id}`));
-    await remove(ref(db, `blockedBy/${id}/${myId}`));
-    setStatus("Unblock हो गया");
-  } catch (e) { setStatus("दिक्कत: " + e.message); }
+  try { await remove(ref(db, `blocks/${myId}/${id}`)); await remove(ref(db, `blockedBy/${id}/${myId}`)); setStatus("Unblock हो गया"); }
+  catch (e) { setStatus("दिक्कत: " + e.message); }
 }
-
 async function reportUser(id, name) {
   const reason = prompt(name + " की Report का कारण लिखें (200 अक्षर तक):");
   if (!reason || !reason.trim()) return;
   try {
-    await push(ref(db, "reports"), {
-      by: myId, against: id, againstName: String(name || "").slice(0, 40),
-      reason: reason.trim().slice(0, 200), t: Date.now()
-    });
+    await push(ref(db, "reports"), { by: myId, against: id, againstName: String(name || "").slice(0, 40), reason: reason.trim().slice(0, 200), t: Date.now() });
     setStatus("Report भेज दी गई। धन्यवाद।");
   } catch (e) { setStatus("Report में दिक्कत: " + e.message); }
 }
 
 /* ---------- Chat ---------- */
 function scrollMsgs() { const m = $("msgs"); m.scrollTop = m.scrollHeight; }
-
+const bub = m => `<div class="m ${m.from === myId ? "me" : "them"}">${okImg(m.img) ? `<img class="mi" src="${m.img}" data-a="zoom">` : ""}${m.text ? `<div>${esc(m.text)}</div>` : ""}<small>${hhmm(m.t)}</small></div>`;
 function openChat(id, name) {
   if (!conns[id] || isHidden(id)) return;
-  chatWith = id; chatName = name;
-  markSeen(id); updateTitle();
+  chatWith = id; chatName = name; markSeen(id); updateTitle();
   $("chatTitle").textContent = name;
-  $("main").style.display = "none";
-  $("chat").style.display = "flex";
-  $("msgs").innerHTML = "";
-  const q = query(ref(db, "chats/" + chatId(id)), limitToLast(100));
+  $("chatAv").innerHTML = photos[id] ? `<img src="${photos[id]}">` : esc((conns[id] && conns[id].av) || "🙂");
+  $("app").style.display = "none"; $("chat").style.display = "flex"; $("msgs").innerHTML = "";
+  const q = query(ref(db, "chats/" + chatId(id)), limitToLast(40));
   chatUnsub = onValue(q, s => {
-    const data = s.val() || {};
-    const list = Object.values(data).sort((a, b) => a.t - b.t);
-    $("msgs").innerHTML = list.length
-      ? list.map(m => `<div class="m ${m.from === myId ? "me" : "them"}">${esc(m.text)}<small>${hhmm(m.t)}</small></div>`).join("")
-      : '<div class="empty">अभी कोई संदेश नहीं। पहला संदेश भेजें 👋</div>';
+    const list = Object.values(s.val() || {}).sort((a, b) => a.t - b.t);
+    $("msgs").innerHTML = list.length ? list.map(bub).join("") : '<div class="empty">अभी कोई संदेश नहीं। पहला संदेश भेजें 👋</div>';
     scrollMsgs();
     if (document.visibilityState === "visible") markSeen(id);
   });
 }
-
 function closeChat() {
   if (chatWith) markSeen(chatWith);
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
-  chatWith = null;
-  $("chat").style.display = "none";
-  $("main").style.display = "block";
-  updateTitle();
+  chatWith = null; $("chat").style.display = "none"; $("cmenu").style.display = "none";
+  if (myId) $("app").style.display = "flex";
+  updateTitle(); render();
 }
-
 async function sendMsg() {
   const text = $("msgInput").value.trim();
   if (!text || !chatWith || !conns[chatWith] || isHidden(chatWith)) return;
   $("msgInput").value = "";
+  try { await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, text, t: Date.now() }); $("msgInput").focus(); }
+  catch (e) { showToast("संदेश नहीं गया: " + e.message); }
+}
+async function sendImage(file) {
+  if (!file || !chatWith || !conns[chatWith] || isHidden(chatWith)) return;
   try {
-    await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, text, t: Date.now() });
-    $("msgInput").focus();
-  } catch (e) { setStatus("संदेश नहीं गया: " + e.message); }
+    showToast("फोटो भेज रहे हैं...", 2500);
+    const img = await fitImage(file, 900, .7, false, 170000);
+    await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, img, t: Date.now() });
+  } catch (e) { showToast("फोटो नहीं गई: " + e.message); }
+}
+async function savePhoto(file) {
+  if (!file) return;
+  try {
+    const ph = await fitImage(file, 160, .72, true, 14000);
+    await set(ref(db, "profiles/" + myId), { ph, t: Date.now() });
+    showToast("फोटो सेव हो गई ✔");
+  } catch (e) { showToast("फोटो सेव नहीं हुई: " + e.message); }
 }
 
 /* ---------- Listeners ---------- */
 function startListeners() {
   unsubs.push(onValue(ref(db, "requests/" + myId), s => {
     const nv = s.val() || {};
-    if (reqSeen !== null) {
-      for (const id in nv) {
-        if (!reqSeen.has(id) && !isHidden(id)) notify("नई Request", (nv[id].name || "कोई") + " आपसे जुड़ना चाहता है", "req-" + id);
-      }
-    }
-    reqSeen = new Set(Object.keys(nv));
-    incoming = nv; render();
+    if (reqSeen !== null) for (const id in nv) if (!reqSeen.has(id) && !isHidden(id)) notify("नई Request", (nv[id].name || "कोई") + " आपसे जुड़ना चाहता है", "req-" + id);
+    reqSeen = new Set(Object.keys(nv)); incoming = nv; syncWatchers(); render();
   }));
   unsubs.push(onValue(ref(db, "sent/" + myId), s => { sent = s.val() || {}; render(); }));
-  unsubs.push(onValue(ref(db, "connections/" + myId), s => { conns = s.val() || {}; syncChatWatchers(); render(); }));
-  unsubs.push(onValue(ref(db, "blocks/" + myId), s => { blocked = s.val() || {}; syncChatWatchers(); render(); }));
-  unsubs.push(onValue(ref(db, "blockedBy/" + myId), s => { blockedBy = s.val() || {}; syncChatWatchers(); render(); }));
+  unsubs.push(onValue(ref(db, "connections/" + myId), s => { conns = s.val() || {}; syncWatchers(); render(); }));
+  unsubs.push(onValue(ref(db, "blocks/" + myId), s => { blocked = s.val() || {}; syncWatchers(); render(); }));
+  unsubs.push(onValue(ref(db, "blockedBy/" + myId), s => { blockedBy = s.val() || {}; syncWatchers(); render(); }));
+  unsubs.push(onValue(ref(db, "profiles/" + myId), s => { const v = s.val(); myPhoto = (v && okImg(v.ph)) ? v.ph : ""; render(); }, () => {}));
 }
 function stopListeners() {
   unsubs.forEach(u => u()); unsubs = [];
-  Object.values(chatWatch).forEach(u => u());
-  chatWatch = {}; lastKey = {}; unread = {}; reqSeen = null;
+  Object.values(chatWatch).forEach(u => u()); Object.values(profWatch).forEach(u => u());
+  chatWatch = {}; profWatch = {}; lastKey = {}; lastInfo = {}; unread = {}; photos = {}; myPhoto = ""; reqSeen = null;
   incoming = {}; sent = {}; conns = {}; blocked = {}; blockedBy = {}; lastScan = [];
   document.title = "NearU";
 }
 
 onAuthStateChanged(auth, user => {
+  $("splash").style.display = "none";
   if (user) {
     myId = user.uid;
     $("name").value = localStorage.getItem("nearuName") || user.displayName || "";
     $("bio").value = localStorage.getItem("nearuBio") || "";
     $("av").value = localStorage.getItem("nearuAv") || "🙂";
-    $("login").style.display = "none";
-    $("main").style.display = "block";
-    updateNotifBtn();
-    startListeners();
-    render();
+    $("login").style.display = "none"; $("app").style.display = "flex";
+    updateNotifBtn(); showTab(tab); startListeners(); render();
   } else {
-    myId = null;
-    stopListeners();
-    $("main").style.display = "none";
-    $("chat").style.display = "none";
-    $("login").style.display = "flex";
+    myId = null; stopListeners();
+    $("app").style.display = "none"; $("chat").style.display = "none"; $("login").style.display = "flex";
   }
 });
+setTimeout(() => { if ($("splash").style.display !== "none") { $("splash").style.display = "none"; $("login").style.display = "flex"; } }, 8000);
 
 $("msgInput").addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
 $("msgInput").addEventListener("focus", () => setTimeout(scrollMsgs, 300));
+$("av").addEventListener("change", renderMe);
 $("toast").addEventListener("click", () => { $("toast").style.display = "none"; });
+$("phFile").addEventListener("change", async e => { const f = e.target.files[0]; e.target.value = ""; await savePhoto(f); });
+$("imgFile").addEventListener("change", async e => { const f = e.target.files[0]; e.target.value = ""; await sendImage(f); });
 
 document.addEventListener("click", async e => {
-  const b = e.target.closest("button[data-a]");
+  const b = e.target.closest("[data-a]");
+  if (!b || b.dataset.a !== "menu") $("cmenu").style.display = "none";
   if (!b) return;
   const a = b.dataset.a, id = b.dataset.id, n = b.dataset.n;
   try {
-    if (a === "login") {
-      $("loginMsg").textContent = "Login हो रहा है...";
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      $("loginMsg").textContent = "";
-    }
+    if (a === "login") { $("loginMsg").textContent = "Login हो रहा है..."; await signInWithPopup(auth, new GoogleAuthProvider()); $("loginMsg").textContent = ""; }
     else if (a === "logout") { await setInvisible(); closeChat(); await signOut(auth); }
-    else if (a === "saveProfile") {
-      saveProfileLocal();
-      if (visible) await publish();
-      setStatus("Profile सेव हो गई ✔");
-    }
+    else if (a === "tab") showTab(b.dataset.t);
+    else if (a === "saveProfile") { saveProfileLocal(); if (visible) await publish(); setStatus("Profile सेव हो गई ✔"); render(); }
+    else if (a === "pickPh") $("phFile").click();
+    else if (a === "rmPh") { await set(ref(db, "profiles/" + myId), { t: Date.now() }); showToast("फोटो हटा दी गई"); }
     else if (a === "notif") await toggleNotif();
     else if (a === "vis") await toggleVisible();
     else if (a === "scan") await scan();
     else if (a === "chat") openChat(id, n);
     else if (a === "back") closeChat();
+    else if (a === "menu") { const m = $("cmenu"); m.style.display = m.style.display === "block" ? "none" : "block"; }
     else if (a === "send") await sendMsg();
+    else if (a === "pickImg") $("imgFile").click();
+    else if (a === "zoom") { $("lbImg").src = b.src; $("lb").style.display = "flex"; }
+    else if (a === "lbClose") $("lb").style.display = "none";
     else if (a === "blk") await blockUser(id, n);
     else if (a === "unb") await unblockUser(id);
     else if (a === "rep") await reportUser(id, n);
     else if (a === "blockChat") { if (chatWith) { const ok = await blockUser(chatWith, chatName); if (ok) closeChat(); } }
     else if (a === "reportChat") { if (chatWith) await reportUser(chatWith, chatName); }
+    else if (a === "delChat") {
+      if (chatWith && confirm(chatName + " से Connection हटाएँ?")) {
+        const o = chatWith; await remove(ref(db, `connections/${myId}/${o}`)); await remove(ref(db, `connections/${o}/${myId}`)); closeChat();
+      }
+    }
     else if (a === "req") {
       saveProfileLocal();
       await set(ref(db, `requests/${id}/${myId}`), { name: myName(), bio: myBio(), av: myAv(), t: Date.now() });
@@ -560,7 +594,7 @@ document.addEventListener("click", async e => {
     }
   } catch (err) {
     if (a === "login") $("loginMsg").textContent = "Login की दिक्कत: " + err.message;
-    else setStatus("दिक्कत: " + err.message);
+    else showToast("दिक्कत: " + err.message);
   }
 });
 </script>
