@@ -51,6 +51,8 @@
   input,textarea,select{width:100%;padding:12px 14px;font-size:16px;border:1.5px solid var(--line);border-radius:12px;font-family:inherit;background:#fff;color:var(--tx);margin-bottom:10px;outline:none}
   input:focus,textarea:focus,select:focus{border-color:var(--g2)}
   input[type=file]{display:none}
+  input[type=checkbox]{width:20px;height:20px;margin:0;padding:0;flex:none}
+  .chk{display:flex;align-items:center;gap:10px;font-size:15px;margin:10px 0 4px}
   textarea{resize:none;height:76px}
   .btn{display:block;width:100%;padding:13px;font-size:16px;font-weight:700;border:0;border-radius:12px;background:var(--g);color:#fff;margin:8px 0;font-family:inherit}
   .btn:active{transform:scale(.98)}
@@ -76,6 +78,8 @@
   #msgs{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 10px;display:flex;flex-direction:column}
   .m{max-width:80%;padding:7px 10px 4px;border-radius:10px;margin-bottom:5px;word-wrap:break-word;line-height:1.35;box-shadow:0 1px 1px #00000014}
   .m small{display:block;font-size:11px;color:var(--mut);margin-top:2px;text-align:right}
+  .tk{margin-left:4px;font-size:12px;letter-spacing:-2px;color:var(--mut)}
+  .tk.b{color:#53bdeb}
   .me{background:var(--out);align-self:flex-end;border-top-right-radius:2px}
   .them{background:#fff;align-self:flex-start;border-top-left-radius:2px}
   .mi{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-bottom:4px}
@@ -104,6 +108,14 @@
     <section id="t_chats"><div id="chatList"></div></section>
 
     <section id="t_near" class="pad">
+      <div class="card">
+        <div class="nm" style="margin-bottom:8px">🔎 Username से खोजें</div>
+        <div style="display:flex;gap:8px">
+          <input id="sq" placeholder="@username" autocapitalize="none" autocomplete="off" autocorrect="off" style="margin:0;flex:1">
+          <button class="btn" data-a="search" style="width:90px;margin:0">खोजें</button>
+        </div>
+        <div id="sres"></div>
+      </div>
       <button id="visBtn" class="btn" data-a="vis">👁 Visible ON करें</button>
       <button class="btn gray" data-a="scan">🔍 आसपास के लोग खोजें</button>
       <div class="pill"><span id="dot" class="dot"></span><span id="status">तैयार</span></div>
@@ -126,6 +138,14 @@
       </select>
       <textarea id="bio" placeholder="अपने बारे में कुछ लिखें (150 अक्षर तक)" maxlength="150"></textarea>
       <div class="hint">बायो आसपास के लोगों को दिखता है। फोटो सिर्फ़ उन्हें दिखती है जिन्हें आप Request भेजें या जो आपके Connection हैं। फोन नंबर या पता न लिखें।</div>
+
+      <h3>🔎 Username और खोज</h3>
+      <input id="uname" placeholder="username (a-z, 0-9, _ ; 3-20 अक्षर)" maxlength="20" autocapitalize="none" autocomplete="off" autocorrect="off">
+      <label class="chk"><input type="checkbox" id="srch"> कोई भी मेरा username जानकर मुझे खोज सके</label>
+      <div class="hint">ON होने पर सिर्फ़ आपका नाम और अवतार (इमोजी) दिखेगा, लोकेशन या फोटो नहीं। जब चाहें बंद कर सकते हैं।</div>
+      <label class="chk"><input type="checkbox" id="rcpt" checked> Read receipts (नीली ✓✓) दिखाएँ</label>
+      <div class="hint">बंद करने पर आप दूसरों की और दूसरे आपकी "पढ़ा" स्थिति नहीं देखेंगे।</div>
+
       <button class="btn" data-a="saveProfile">Profile सेव करें</button>
       <button id="notifBtn" class="btn gray" data-a="notif">🔔 Notifications चालू करें</button>
       <div id="blockedBox"></div>
@@ -166,7 +186,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, push, remove, get, onValue, onDisconnect, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, update, push, remove, get, onValue, onDisconnect, query, limitToLast, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -193,11 +213,15 @@ const hhmm = t => { try { return new Date(t).toLocaleTimeString("hi-IN", { hour:
 const stamp = t => { try { const d = new Date(t), n = new Date(); return d.toDateString() === n.toDateString() ? hhmm(t) : d.toLocaleDateString("hi-IN", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
 const dlabel = d => d < 1000 ? "लगभग " + Math.max(100, Math.round(d / 100) * 100) + " मीटर दूर" : "लगभग " + (d < 10000 ? (d / 1000).toFixed(1) : Math.round(d / 1000)) + " किमी दूर";
 const av = (id, x, cls) => { const p = photos[id]; return `<div class="avc ${cls || ""}">${p ? `<img src="${p}">` : esc((x && x.av) || "🙂")}</div>`; };
+const cleanHandle = s => String(s || "").trim().replace(/^@+/, "").toLowerCase();
+const validHandle = h => /^[a-z0-9_]{3,20}$/.test(h);
+const rcOn = () => localStorage.getItem("nearuRcpt") !== "0";
 
-let myId = null, visible = false, timer = null, myPos = null, myPhoto = "";
+let myId = null, visible = false, timer = null, myPos = null, myPhoto = "", myHandle = "", searchHit = null;
 let lastScan = [], incoming = {}, sent = {}, conns = {}, blocked = {}, blockedBy = {};
-let chatWith = null, chatName = "", chatUnsub = null, unsubs = [], tab = "chats";
-let reqSeen = null, chatWatch = {}, profWatch = {}, lastKey = {}, lastInfo = {}, unread = {}, photos = {}, toastTimer = null;
+let chatWith = null, chatName = "", chatUnsub = null, rcUnsub = null, unsubs = [], tab = "chats";
+let msgList = [], otherRc = {};
+let reqSeen = null, chatWatch = {}, profWatch = {}, lastKey = {}, lastDeliv = {}, lastInfo = {}, unread = {}, photos = {}, toastTimer = null;
 const isHidden = id => !!(blocked[id] || blockedBy[id]);
 const T = { chats: "NearU", near: "आसपास", req: "Requests", me: "Profile" };
 
@@ -274,8 +298,21 @@ async function fitImage(file, max, q, sq, limit) {
   return out;
 }
 
-/* ---------- Chat watchers ---------- */
+/* ---------- Receipts ---------- */
 const chatId = other => [myId, other].sort().join("_");
+const rcRef = id => ref(db, `receipts/${chatId(id)}/${myId}`);
+async function markDelivered(id) { try { await update(rcRef(id), { d: serverTimestamp() }); } catch (e) {} }
+async function markRead(id) {
+  try { const o = { d: serverTimestamp() }; if (rcOn()) o.r = serverTimestamp(); await update(rcRef(id), o); } catch (e) {}
+}
+function tick(m) {
+  if (m.from !== myId) return "";
+  if (rcOn() && otherRc.r && otherRc.r >= m.t) return '<span class="tk b">✓✓</span>';
+  if (otherRc.d && otherRc.d >= m.t) return '<span class="tk">✓✓</span>';
+  return '<span class="tk">✓</span>';
+}
+
+/* ---------- Chat watchers ---------- */
 function markSeen(id) { try { localStorage.setItem("nearuSeen_" + chatId(id), String(Date.now())); } catch (e) {} delete unread[id]; }
 function attachWatch(id) {
   const q = query(ref(db, "chats/" + chatId(id)), limitToLast(1));
@@ -285,6 +322,7 @@ function attachWatch(id) {
     if (!v) { first = false; return; }
     const key = Object.keys(v)[0], m = v[key];
     lastInfo[id] = { text: okImg(m.img) ? ("📷 फोटो" + (m.text ? " " + m.text : "")) : (m.text || ""), t: m.t, mine: m.from === myId };
+    if (m.from !== myId && lastDeliv[id] !== key) { lastDeliv[id] = key; markDelivered(id); }
     if (first) {
       first = false; lastKey[id] = key;
       const ls = +localStorage.getItem("nearuSeen_" + chatId(id)) || 0;
@@ -302,7 +340,7 @@ function attachWatch(id) {
 function syncWatchers() {
   const want = new Set(Object.keys(conns).filter(id => !isHidden(id)));
   for (const id of Object.keys(chatWatch)) {
-    if (!want.has(id)) { chatWatch[id](); delete chatWatch[id]; delete lastKey[id]; delete unread[id]; delete lastInfo[id]; }
+    if (!want.has(id)) { chatWatch[id](); delete chatWatch[id]; delete lastKey[id]; delete lastDeliv[id]; delete unread[id]; delete lastInfo[id]; }
   }
   want.forEach(id => { if (!chatWatch[id]) attachWatch(id); });
   const pw = new Set([...want, ...Object.keys(incoming).filter(id => !isHidden(id))]);
@@ -316,11 +354,29 @@ function syncWatchers() {
   });
 }
 
-/* ---------- Profile / Visible / Scan ---------- */
+/* ---------- Profile / Username / Visible / Scan ---------- */
 function saveProfileLocal() {
   localStorage.setItem("nearuName", $("name").value.trim());
   localStorage.setItem("nearuBio", myBio());
   localStorage.setItem("nearuAv", myAv());
+  localStorage.setItem("nearuHandle", cleanHandle($("uname").value));
+}
+async function applySearchable() {
+  const want = $("srch").checked;
+  const h = cleanHandle($("uname").value);
+  if (want) {
+    if (!validHandle(h)) throw new Error("Username 3-20 अक्षर का हो: a-z, 0-9, _");
+    try { await set(ref(db, "usernames/" + h), { uid: myId, name: myName(), av: myAv(), t: Date.now() }); }
+    catch (e) { throw new Error("यह username लिया हुआ है, दूसरा चुनें"); }
+    await set(ref(db, "handles/" + myId), h);
+    if (myHandle && myHandle !== h) { try { await remove(ref(db, "usernames/" + myHandle)); } catch (e) {} }
+    myHandle = h;
+    localStorage.setItem("nearuHandle", h);
+  } else if (myHandle) {
+    try { await remove(ref(db, "usernames/" + myHandle)); } catch (e) {}
+    await remove(ref(db, "handles/" + myId));
+    myHandle = "";
+  }
 }
 function getPos() {
   return new Promise((res, rej) => navigator.geolocation.getCurrentPosition(
@@ -379,7 +435,34 @@ async function scan() {
     render();
   } catch (e) { setStatus("दिक्कत: " + e.message); }
 }
-  /* ---------- Render ---------- */
+
+/* ---------- Username search ---------- */
+async function searchUser() {
+  const h = cleanHandle($("sq").value), box = $("sres");
+  searchHit = null;
+  if (!validHandle(h)) { box.innerHTML = '<div class="hint">सही username लिखें (3-20 अक्षर: a-z, 0-9, _)</div>'; return; }
+  box.innerHTML = '<div class="hint">खोज रहे हैं...</div>';
+  let u = null;
+  try { u = (await get(ref(db, "usernames/" + h))).val(); }
+  catch (e) { box.innerHTML = '<div class="hint">खोज में दिक्कत: ' + esc(e.message) + '</div>'; return; }
+  if (!u || !u.uid || (u.uid !== myId && isHidden(u.uid))) { box.innerHTML = '<div class="hint">इस username का कोई व्यक्ति नहीं मिला, या उसने खोज बंद रखी है।</div>'; return; }
+  if (u.uid === myId) { box.innerHTML = '<div class="hint">यह आपका अपना username है।</div>'; return; }
+  searchHit = { id: u.uid, name: u.name || "अनाम", av: u.av || "🙂", h };
+  renderSearch();
+}
+function renderSearch() {
+  const box = $("sres"), p = searchHit;
+  if (!p) return;
+  if (isHidden(p.id)) { box.innerHTML = ""; return; }
+  let btn;
+  if (conns[p.id]) btn = '<div class="meta">✔ पहले से Connected</div>';
+  else if (incoming[p.id]) btn = '<div class="meta">इन्होंने आपको Request भेजी है (Requests टैब देखें)</div>';
+  else if (sent[p.id]) btn = '<button class="btn" disabled>Request भेजी गई</button>';
+  else btn = `<button class="btn" data-a="req" data-id="${esc(p.id)}">Request भेजें</button>`;
+  box.innerHTML = `<div class="ph" style="margin-top:12px"><div class="avc">${esc(p.av)}</div><div class="mid"><div class="nm">${esc(p.name)}</div><div class="meta">@${esc(p.h)}</div></div></div>${btn}`;
+}
+
+/* ---------- Render ---------- */
 function renderChats() {
   const cs = Object.entries(conns).filter(([id]) => !isHidden(id));
   if (!cs.length) { $("chatList").innerHTML = '<div class="empty">अभी कोई चैट नहीं।<br>"आसपास" टैब में लोगों को खोजकर Request भेजें।</div>'; return; }
@@ -422,7 +505,7 @@ function renderMe() {
     `<div class="card"><div class="nm">${esc(b.name || "अनाम")}</div><button class="btn gray" data-a="unb" data-id="${esc(id)}">Unblock</button></div>`).join("") : "";
 }
 function render() {
-  renderChats(); renderNear(); renderReq(); renderMe();
+  renderChats(); renderNear(); renderReq(); renderMe(); renderSearch();
   if (chatWith && (!conns[chatWith] || isHidden(chatWith))) closeChat();
   updateTitle();
 }
@@ -435,6 +518,7 @@ async function blockUser(id, name) {
     await set(ref(db, `blockedBy/${id}/${myId}`), true);
     for (const p of [`connections/${myId}/${id}`, `connections/${id}/${myId}`, `requests/${myId}/${id}`, `requests/${id}/${myId}`, `sent/${myId}/${id}`, `sent/${id}/${myId}`]) { try { await remove(ref(db, p)); } catch (e) {} }
     lastScan = lastScan.filter(p => p.id !== id);
+    if (searchHit && searchHit.id === id) { searchHit = null; $("sres").innerHTML = ""; }
     setStatus(name + " Block हो गया"); return true;
   } catch (e) { setStatus("Block में दिक्कत: " + e.message); return false; }
 }
@@ -453,25 +537,38 @@ async function reportUser(id, name) {
 
 /* ---------- Chat ---------- */
 function scrollMsgs() { const m = $("msgs"); m.scrollTop = m.scrollHeight; }
-const bub = m => `<div class="m ${m.from === myId ? "me" : "them"}">${okImg(m.img) ? `<img class="mi" src="${m.img}" data-a="zoom">` : ""}${m.text ? `<div>${esc(m.text)}</div>` : ""}<small>${hhmm(m.t)}</small></div>`;
+const bub = m => `<div class="m ${m.from === myId ? "me" : "them"}">${okImg(m.img) ? `<img class="mi" src="${m.img}" data-a="zoom">` : ""}${m.text ? `<div>${esc(m.text)}</div>` : ""}<small>${hhmm(m.t)}${tick(m)}</small></div>`;
+function renderMsgs(forceScroll) {
+  const m = $("msgs"), prev = m.scrollTop, near = m.scrollHeight - m.scrollTop - m.clientHeight < 80;
+  m.innerHTML = msgList.length ? msgList.map(bub).join("") : '<div class="empty">अभी कोई संदेश नहीं। पहला संदेश भेजें 👋</div>';
+  if (forceScroll || near) scrollMsgs(); else m.scrollTop = prev;
+}
 function openChat(id, name) {
   if (!conns[id] || isHidden(id)) return;
   chatWith = id; chatName = name; markSeen(id); updateTitle();
   $("chatTitle").textContent = name;
   $("chatAv").innerHTML = photos[id] ? `<img src="${photos[id]}">` : esc((conns[id] && conns[id].av) || "🙂");
   $("app").style.display = "none"; $("chat").style.display = "flex"; $("msgs").innerHTML = "";
+  msgList = []; otherRc = {};
+  rcUnsub = onValue(ref(db, `receipts/${chatId(id)}/${id}`), s => { otherRc = s.val() || {}; renderMsgs(false); }, () => {});
   const q = query(ref(db, "chats/" + chatId(id)), limitToLast(40));
   chatUnsub = onValue(q, s => {
-    const list = Object.values(s.val() || {}).sort((a, b) => a.t - b.t);
-    $("msgs").innerHTML = list.length ? list.map(bub).join("") : '<div class="empty">अभी कोई संदेश नहीं। पहला संदेश भेजें 👋</div>';
-    scrollMsgs();
-    if (document.visibilityState === "visible") markSeen(id);
+    msgList = Object.values(s.val() || {}).sort((a, b) => a.t - b.t);
+    renderMsgs(true);
+    if (document.visibilityState === "visible") {
+      markSeen(id);
+      const last = msgList[msgList.length - 1];
+      if (last && last.from !== myId) markRead(id);
+    }
   });
+  if (document.visibilityState === "visible") markRead(id);
 }
 function closeChat() {
   if (chatWith) markSeen(chatWith);
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
-  chatWith = null; $("chat").style.display = "none"; $("cmenu").style.display = "none";
+  if (rcUnsub) { rcUnsub(); rcUnsub = null; }
+  chatWith = null; msgList = []; otherRc = {};
+  $("chat").style.display = "none"; $("cmenu").style.display = "none";
   if (myId) $("app").style.display = "flex";
   updateTitle(); render();
 }
@@ -479,7 +576,7 @@ async function sendMsg() {
   const text = $("msgInput").value.trim();
   if (!text || !chatWith || !conns[chatWith] || isHidden(chatWith)) return;
   $("msgInput").value = "";
-  try { await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, text, t: Date.now() }); $("msgInput").focus(); }
+  try { await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, text, t: serverTimestamp() }); $("msgInput").focus(); }
   catch (e) { showToast("संदेश नहीं गया: " + e.message); }
 }
 async function sendImage(file) {
@@ -487,7 +584,7 @@ async function sendImage(file) {
   try {
     showToast("फोटो भेज रहे हैं...", 2500);
     const img = await fitImage(file, 900, .7, false, 170000);
-    await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, img, t: Date.now() });
+    await push(ref(db, "chats/" + chatId(chatWith)), { from: myId, img, t: serverTimestamp() });
   } catch (e) { showToast("फोटो नहीं गई: " + e.message); }
 }
 async function savePhoto(file) {
@@ -511,12 +608,18 @@ function startListeners() {
   unsubs.push(onValue(ref(db, "blocks/" + myId), s => { blocked = s.val() || {}; syncWatchers(); render(); }));
   unsubs.push(onValue(ref(db, "blockedBy/" + myId), s => { blockedBy = s.val() || {}; syncWatchers(); render(); }));
   unsubs.push(onValue(ref(db, "profiles/" + myId), s => { const v = s.val(); myPhoto = (v && okImg(v.ph)) ? v.ph : ""; render(); }, () => {}));
+  unsubs.push(onValue(ref(db, "handles/" + myId), s => {
+    myHandle = s.val() || "";
+    if (myHandle) $("uname").value = myHandle;
+    $("srch").checked = !!myHandle;
+  }, () => {}));
 }
 function stopListeners() {
   unsubs.forEach(u => u()); unsubs = [];
   Object.values(chatWatch).forEach(u => u()); Object.values(profWatch).forEach(u => u());
-  chatWatch = {}; profWatch = {}; lastKey = {}; lastInfo = {}; unread = {}; photos = {}; myPhoto = ""; reqSeen = null;
+  chatWatch = {}; profWatch = {}; lastKey = {}; lastDeliv = {}; lastInfo = {}; unread = {}; photos = {}; myPhoto = ""; reqSeen = null;
   incoming = {}; sent = {}; conns = {}; blocked = {}; blockedBy = {}; lastScan = [];
+  myHandle = ""; searchHit = null; $("sres").innerHTML = "";
   document.title = "NearU";
 }
 
@@ -527,6 +630,8 @@ onAuthStateChanged(auth, user => {
     $("name").value = localStorage.getItem("nearuName") || user.displayName || "";
     $("bio").value = localStorage.getItem("nearuBio") || "";
     $("av").value = localStorage.getItem("nearuAv") || "🙂";
+    $("uname").value = localStorage.getItem("nearuHandle") || "";
+    $("rcpt").checked = rcOn();
     $("login").style.display = "none"; $("app").style.display = "flex";
     updateNotifBtn(); showTab(tab); startListeners(); render();
   } else {
@@ -538,10 +643,21 @@ setTimeout(() => { if ($("splash").style.display !== "none") { $("splash").style
 
 $("msgInput").addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
 $("msgInput").addEventListener("focus", () => setTimeout(scrollMsgs, 300));
+$("sq").addEventListener("keydown", e => { if (e.key === "Enter") searchUser(); });
 $("av").addEventListener("change", renderMe);
 $("toast").addEventListener("click", () => { $("toast").style.display = "none"; });
 $("phFile").addEventListener("change", async e => { const f = e.target.files[0]; e.target.value = ""; await savePhoto(f); });
 $("imgFile").addEventListener("change", async e => { const f = e.target.files[0]; e.target.value = ""; await sendImage(f); });
+$("rcpt").addEventListener("change", () => { localStorage.setItem("nearuRcpt", $("rcpt").checked ? "1" : "0"); if (chatWith) renderMsgs(false); });
+$("srch").addEventListener("change", async () => {
+  try {
+    await applySearchable();
+    showToast($("srch").checked ? "अब लोग आपके username से आपको खोज सकते हैं" : "खोज बंद कर दी गई");
+  } catch (e) { $("srch").checked = !!myHandle; showToast(e.message); }
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && chatWith) { markSeen(chatWith); markRead(chatWith); updateTitle(); }
+});
 
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-a]");
@@ -552,12 +668,18 @@ document.addEventListener("click", async e => {
     if (a === "login") { $("loginMsg").textContent = "Login हो रहा है..."; await signInWithPopup(auth, new GoogleAuthProvider()); $("loginMsg").textContent = ""; }
     else if (a === "logout") { await setInvisible(); closeChat(); await signOut(auth); }
     else if (a === "tab") showTab(b.dataset.t);
-    else if (a === "saveProfile") { saveProfileLocal(); if (visible) await publish(); setStatus("Profile सेव हो गई ✔"); render(); }
+    else if (a === "saveProfile") {
+      saveProfileLocal();
+      if (visible) await publish();
+      if ($("srch").checked) { try { await applySearchable(); } catch (er) { showToast(er.message); return; } }
+      setStatus("Profile सेव हो गई ✔"); render();
+    }
     else if (a === "pickPh") $("phFile").click();
     else if (a === "rmPh") { await set(ref(db, "profiles/" + myId), { t: Date.now() }); showToast("फोटो हटा दी गई"); }
     else if (a === "notif") await toggleNotif();
     else if (a === "vis") await toggleVisible();
     else if (a === "scan") await scan();
+    else if (a === "search") await searchUser();
     else if (a === "chat") openChat(id, n);
     else if (a === "back") closeChat();
     else if (a === "menu") { const m = $("cmenu"); m.style.display = m.style.display === "block" ? "none" : "block"; }
