@@ -146,6 +146,13 @@
       <label class="chk"><input type="checkbox" id="rcpt" checked> Read receipts (नीली ✓✓) दिखाएँ</label>
       <div class="hint">बंद करने पर आप दूसरों की और दूसरे आपकी "पढ़ा" स्थिति नहीं देखेंगे।</div>
 
+      <h3>📏 दूरी की सीमा</h3>
+      <div class="hint">आप कितनी दूर तक के लोगों को खोजेंगे:</div>
+      <select id="sr"><option value="1">1 किमी</option><option value="5">5 किमी</option><option value="10">10 किमी</option><option value="25">25 किमी</option><option value="50">50 किमी</option><option value="100">100 किमी</option><option value="500">500 किमी</option><option value="1000">1000 किमी</option></select>
+      <div class="hint">कितनी दूर तक के लोग आपको खोज सकें (आप उन्हें दिखें):</div>
+      <select id="vr"><option value="1">1 किमी</option><option value="5">5 किमी</option><option value="10">10 किमी</option><option value="25">25 किमी</option><option value="50">50 किमी</option><option value="100">100 किमी</option><option value="500">500 किमी</option><option value="1000">1000 किमी</option></select>
+      <div class="hint">दो लोग तभी एक-दूसरे को दिखेंगे जब दूरी दोनों की सीमाओं में से छोटी वाली के भीतर हो।</div>
+
       <button class="btn" data-a="saveProfile">Profile सेव करें</button>
       <button id="notifBtn" class="btn gray" data-a="notif">🔔 Notifications चालू करें</button>
       <div id="blockedBox"></div>
@@ -216,6 +223,8 @@ const av = (id, x, cls) => { const p = photos[id]; return `<div class="avc ${cls
 const cleanHandle = s => String(s || "").trim().replace(/^@+/, "").toLowerCase();
 const validHandle = h => /^[a-z0-9_]{3,20}$/.test(h);
 const rcOn = () => localStorage.getItem("nearuRcpt") !== "0";
+const srKm = () => +localStorage.getItem("nearuSr") || 5;
+const vrKm = () => +localStorage.getItem("nearuVr") || 5;
 
 let myId = null, visible = false, timer = null, myPos = null, myPhoto = "", myHandle = "", searchHit = null;
 let lastScan = [], incoming = {}, sent = {}, conns = {}, blocked = {}, blockedBy = {};
@@ -360,6 +369,8 @@ function saveProfileLocal() {
   localStorage.setItem("nearuBio", myBio());
   localStorage.setItem("nearuAv", myAv());
   localStorage.setItem("nearuHandle", cleanHandle($("uname").value));
+  localStorage.setItem("nearuSr", $("sr").value);
+  localStorage.setItem("nearuVr", $("vr").value);
 }
 async function applySearchable() {
   const want = $("srch").checked;
@@ -394,7 +405,7 @@ async function publish() {
     myPos = await getPos();
     const G = 0.0015;
     const rl = Math.round(myPos.lat / G) * G, rg = Math.round(myPos.lng / G) * G;
-    await set(ref(db, "users/" + myId), { name: myName(), bio: myBio(), av: myAv(), lat: +rl.toFixed(5), lng: +rg.toFixed(5), t: Date.now() });
+    await set(ref(db, "users/" + myId), { name: myName(), bio: myBio(), av: myAv(), lat: +rl.toFixed(5), lng: +rg.toFixed(5), r: vrKm(), t: Date.now() });
     $("status").textContent = "आप Visible हैं ✔";
   } catch (e) { setStatus("लोकेशन/नेट की दिक्कत: " + e.message); }
 }
@@ -427,7 +438,8 @@ async function scan() {
       const u = data[id];
       if (now - u.t > 180000) continue;
       const d = dist(myPos, u);
-      if (d <= 1000000) out.push({ id, name: u.name, bio: u.bio || "", av: u.av || "🙂", d });   // 1000 किमी (टेस्टिंग)
+      const theirKm = (typeof u.r === "number" && u.r > 0) ? u.r : 5;
+      if (d <= Math.min(srKm(), theirKm) * 1000) out.push({ id, name: u.name, bio: u.bio || "", av: u.av || "🙂", d });
     }
     out.sort((a, b) => a.d - b.d);
     lastScan = out;
@@ -597,7 +609,7 @@ async function savePhoto(file) {
 }
 
 /* ---------- Listeners ---------- */
-function startListeners() {
+  function startListeners() {
   unsubs.push(onValue(ref(db, "requests/" + myId), s => {
     const nv = s.val() || {};
     if (reqSeen !== null) for (const id in nv) if (!reqSeen.has(id) && !isHidden(id)) notify("नई Request", (nv[id].name || "कोई") + " आपसे जुड़ना चाहता है", "req-" + id);
@@ -632,6 +644,7 @@ onAuthStateChanged(auth, user => {
     $("av").value = localStorage.getItem("nearuAv") || "🙂";
     $("uname").value = localStorage.getItem("nearuHandle") || "";
     $("rcpt").checked = rcOn();
+    $("sr").value = String(srKm()); $("vr").value = String(vrKm());
     $("login").style.display = "none"; $("app").style.display = "flex";
     updateNotifBtn(); showTab(tab); startListeners(); render();
   } else {
